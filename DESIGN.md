@@ -108,6 +108,28 @@ A duplicate is defined by **normalized URL equality**.
 - Closes from this stage are recorded in the undo buffer (§2.6) just like manual
   closes, so an over-eager auto-dedup is fully recoverable.
 
+**URL categories.** Rather than one "special" bucket, each tab is classified
+(`core/urlCategory.ts`) into `web`, `blank`, `browser`, `extension`, `file`, or
+`other`, and each category carries its own dedup mode. This keeps the door open
+to per-category policies later. v1 wiring:
+
+| Category                      | Mode      | Behavior                                  |
+| ----------------------------- | --------- | ----------------------------------------- |
+| `web` (http/https)            | dedup     | normal duplicate collapse                 |
+| `blank` (about:blank, new-tab, empty) | **purge** (default) | close as clutter — see below     |
+| `browser` / `extension` / `file` / `other` | protect | set aside, never closed       |
+
+**Blank tabs** carry a `blankTabPolicy` setting:
+- `purge` (default) — close blank/empty tabs as clutter.
+- `collapse` — treat all blanks as duplicates of each other, keep one.
+- `protect` — never close blanks.
+
+**Active-tab invariant.** Across *every* mode, the active (foreground) tab of a
+window is **never closed** — no pulling the rug out from under the user — and it
+is preferred as the survivor within its duplicate group. So a window always
+keeps its active tab even under blank-purge, and an active duplicate always wins
+the keeper contest.
+
 ### 2.4 Sort
 
 - Remaining tabs are ordered by a **sort key derived from the normalized URL**:
@@ -192,6 +214,7 @@ A small options page (`options.html`) backed by `chrome.storage.sync`:
 - Normalization toggles + editable tracking-param blocklist (§2.3).
 - `protectAudible` (default off), `protectPinned` (default on, exposed for
   completeness), `preserveGroups` (default on).
+- `blankTabPolicy`: purge (default) | collapse | protect (§2.3).
 - Keep policy: most-recently-active (default) | oldest | leftmost.
 - Consolidate target: focused window (default) | new window.
 - Confirm-before-commit (default off).
@@ -259,7 +282,8 @@ A small options page (`options.html`) backed by `chrome.storage.sync`:
 
 - **`core/` (no Chrome APIs — pure, unit-tested):**
   - `normalizeUrl(url, settings)` → normalized string + sort key.
-  - `dedupe(tabs, settings)` → `{ keep, close, groups }` plan.
+  - `classifyUrl(url)` → URL category (web/blank/browser/extension/file/other).
+  - `dedupe(tabs, settings)` → `{ keep, close, duplicateGroups }` plan.
   - `sortTabs(tabs, settings)` → ordered list.
   - `buildCleanupPlan(windows, settings)` → a declarative plan (moves, closes,
     group moves) that the background worker executes. Keeping planning pure makes
@@ -312,7 +336,9 @@ full page, keep the side-panel door open" decision.
 | Pinned tabs in non-focused windows     | Stay in place (moving them would unpin/relocate); reported in review.    |
 | Tab is in a group                      | Group moved as a unit; membership/color/title preserved.                 |
 | Duplicate playing audio                | Closeable by default; `protectAudible` setting protects it.              |
-| `chrome://`, `about:`, extension pages | Eligible for consolidate/sort; **excluded from dedup** (often singletons) and the Tabby review page excludes itself. |
+| Active (foreground) tab                | **Never closed**, any mode; preferred as the keeper in its dup group.    |
+| Blank / new-tab / empty tabs           | Purged as clutter by default (`blankTabPolicy`), except the active one.  |
+| `browser` / `extension` / `file` pages | Distinct categories, each protected from dedup; the Tabby review page excludes itself. |
 | Lazy/discarded tabs                    | `tab.url` still available with `tabs` perm; handled normally.            |
 | Only one window, no dupes              | Pipeline just sorts; review opens showing "nothing to remove."           |
 | Incognito windows                      | Out of scope v1 unless extension is allowed in incognito; skipped.       |

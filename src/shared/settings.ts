@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keepPolicy: 'most-recent',
   protectPinned: true,
   protectAudible: false,
+  blankTabPolicy: 'purge',
   preserveGroups: true,
   consolidateTarget: 'focused-window',
   confirmBeforeCommit: false,

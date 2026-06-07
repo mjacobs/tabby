@@ -10,6 +10,8 @@ export interface TabInfo {
   title: string;
   pinned: boolean;
   audible: boolean;
+  /** The active (foreground) tab of its window. Never closed — see dedupe. */
+  active: boolean;
   /** chrome.tabs.TAB_ID_NONE-safe group id, or undefined when ungrouped. */
   groupId?: number;
   /** ms epoch of last activation; used by the keep-most-recent policy. */
@@ -21,6 +23,16 @@ export type KeepPolicy = 'most-recent' | 'oldest' | 'leftmost';
 
 /** Where consolidated tabs land. */
 export type ConsolidateTarget = 'focused-window' | 'new-window';
+
+/**
+ * What to do with blank/empty tabs (about:blank, new-tab pages, empty URL).
+ * Note: these mirror the internal dedup modes of the same name, so the value
+ * can be used directly as a mode. An active blank tab is never closed.
+ *   - 'purge':    close blank tabs as clutter (except active ones)
+ *   - 'collapse': treat all blanks as duplicates, keep one (prefer active)
+ *   - 'protect':  set blanks aside, never close
+ */
+export type BlankTabPolicy = 'purge' | 'collapse' | 'protect';
 
 /** User-tunable behavior, persisted in chrome.storage.sync. */
 export interface Settings {
@@ -36,6 +48,7 @@ export interface Settings {
   keepPolicy: KeepPolicy;
   protectPinned: boolean;
   protectAudible: boolean;
+  blankTabPolicy: BlankTabPolicy;
   preserveGroups: boolean;
   consolidateTarget: ConsolidateTarget;
   confirmBeforeCommit: boolean;

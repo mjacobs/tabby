@@ -25,18 +25,19 @@ Goal: an empty extension that loads, with CI green.
 
 Goal: the whole pipeline as pure functions with no browser dependency.
 
-- [ ] `core/normalizeUrl.ts` — normalization pipeline + sort key (DESIGN §2.3).
-- [ ] `shared/urlPatterns.ts` — default tracking-param blocklist + glob match.
-- [ ] `core/dedupe.ts` — group by normalized URL, keep-most-recent policy,
-      pinned/audible/special exclusions → `{ keep, close }` plan.
-- [ ] `core/sortTabs.ts` — host→path→query ordering, group contiguity.
-- [ ] `core/buildCleanupPlan.ts` — windows snapshot → declarative plan
+- [x] `core/normalizeUrl.ts` — normalization pipeline + sort key (DESIGN §2.3).
+- [x] `shared/urlPatterns.ts` — default tracking-param blocklist + glob match.
+- [x] `core/dedupe.ts` — group by normalized URL, keep policies,
+      pinned/audible/special exclusions → `{ keep, close, duplicateGroups }`.
+- [x] `core/sortTabs.ts` — host→path→query ordering, pinned-lead, group contiguity.
+- [x] `core/buildCleanupPlan.ts` — windows snapshot → declarative plan
       (moves, group-moves, closes), targeting the focused window.
-- [ ] Vitest tables covering: tracking params, fragments, trailing slash,
-      pinned protection, group preservation, audible default, single-window
-      no-op, keep-policy tie-breaks.
+- [x] Vitest tables: tracking params, fragments, trailing slash, pinned
+      protection, group preservation, audible default, single-window no-op,
+      keep-policy tie-breaks, cross-window dedup, new-window mode. (31 tests,
+      ~96% core coverage.)
 
-**Exit:** `pnpm test` covers every dedup/sort/normalize decision in DESIGN §4.
+**Exit:** `pnpm test` covers every dedup/sort/normalize decision in DESIGN §4. ✅
 
 ---
 

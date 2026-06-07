@@ -3,6 +3,13 @@
 Phased build plan for the design in `DESIGN.md`. Each phase is independently
 shippable/testable. Check items off as you go.
 
+> **Verification status (2026-06-07):** Phases 0–4 verified in Chrome on macOS
+> (driven via gstack's browser MCP). 5 of 6 risk areas passed on the first pass;
+> the exception was **tab-group integrity** — the executor's reorder dissolved
+> multi-tab groups down to their last member during consolidation. Fixed in
+> `src/background/executor.ts` (commit `f2be518`) with a regression test, then
+> re-verified intact in the browser. v1.0 stack fast-forwarded onto `main`.
+
 ---
 
 ## Phase 0 — Scaffold (½ day)
@@ -14,10 +21,11 @@ Goal: an empty extension that loads, with CI green.
 - [x] Placeholder `background/index.ts`, `review.html`, `options.html`.
 - [x] ESLint + Prettier, Vitest configured.
 - [x] GitHub Actions: typecheck · lint · test · build artifact.
-- [ ] **Verify:** loads as unpacked extension; toolbar icon appears. _(manual —
-      `pnpm build` succeeds; load `dist/` at chrome://extensions to confirm)_
+- [x] **Verify:** loads as unpacked extension; pipeline runs. _(verified
+      2026-06-07 on macOS — `dist/` loaded at chrome://extensions, no errors;
+      `Cmd+Shift+K` runs cleanup and opens the review tab.)_
 
-**Exit:** clicking the icon opens `review.html`. ✅ (pending the manual load)
+**Exit:** triggering Tabby opens `review.html`. ✅ (verified)
 
 ---
 
@@ -58,12 +66,17 @@ Goal: trigger → real tabs get consolidated, deduped, sorted.
 - [x] Wire toolbar action **and** `run-cleanup` command to the orchestrator.
 - [x] Review placeholder reads the stashed summary (proves the pipeline).
 - [x] Tests: fake-driver `applyPlan` sequencing + pure mapper (48 tests total).
-- [ ] **Verify manually:** open 3 windows with overlapping dupes incl. a pinned
-      tab and a tab group → trigger → tabs gather into focused window, dupes
-      gone, groups intact, pinned untouched, strip sorted.
+- [x] **Verify manually:** 2 windows with cross-window dupes incl. a pinned tab
+      and a tab group → trigger → tabs gather into focused window, dupes gone,
+      pinned untouched, strip sorted. _(verified 2026-06-07. **Group integrity
+      initially FAILED** — the reorder moved grouped tabs by id, which ejects
+      them, dissolving multi-tab groups to their last member. Fixed in
+      `executor.ts` (move groups via `chrome.tabGroups.move`; commit `f2be518`)
+      + regression test, then re-verified: a 3-tab group consolidated
+      cross-window fully intact.)_
 
 **Exit:** the consolidate→dedup→sort pipeline works end-to-end on real tabs;
-review page opens with a live summary. ✅ (pending the manual multi-window check)
+review page opens with a live summary. ✅ (verified; group-integrity bug fixed)
 
 ---
 
@@ -83,7 +96,9 @@ Goal: the keep/remove review experience from DESIGN §2.5.
 - [x] `?` cheatsheet overlay.
 - [x] Tests: pure state + keymap; jsdom component tests (load→mark→commit→remove,
       cursor move, jump) against a fake transport. (66 tests total.)
-- [ ] **Verify manually:** prune ~30 tabs entirely from the keyboard; undo works.
+- [x] **Verify manually:** keyboard prune + undo. _(verified 2026-06-07 — `G`
+      jump, `x` mark, `Cmd+Enter` closed the real tab, `u` reopened it by URL;
+      header counts/marks tracked correctly throughout.)_
 
 > Deferred: list virtualization (fine for typical counts; revisit for 500+),
 > collapsible group headers, and the `gg` two-key top (single `g` used instead).
@@ -107,7 +122,9 @@ Goal: configurable, friendly, ready to rely on.
 - [x] Icons (16/32/48/128) from an SVG, wired into `action` + `icons`.
 - [x] README refreshed to v1.0 with the keymap.
 - [x] **Verify (automated):** `stripAllQuery` / `ignoreWww` change dedup results
-      (dedupe tests). Manual: edit a setting, confirm the next run differs.
+      (dedupe tests). _(manual verified 2026-06-07 — toggled "Ignore ALL query
+      params" in the options page; the next run merged two query-variant tabs
+      that had stayed distinct under defaults.)_
 
 **Exit:** v1.0 — daily-driver quality for the author's workflow. ✅
 
@@ -139,6 +156,8 @@ Goal: cash in the host-agnostic design.
 
 - One click / one shortcut runs consolidate→dedup→sort and opens review.
 - Review is fully keyboard-operable; every close is undoable.
-- Pinned tabs and tab groups are provably preserved (covered by tests).
+- Pinned tabs and tab groups are provably preserved (covered by tests, incl. an
+  executor regression test guarding group membership through the reorder — added
+  after the 2026-06-07 real-browser find).
 - Settings persist and meaningfully change behavior.
 - CI green: typecheck, lint, unit tests, build.

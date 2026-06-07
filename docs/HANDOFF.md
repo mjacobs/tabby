@@ -1,123 +1,100 @@
 # Tabby — Handoff
 
-**Next session focus:** Manual/Chrome-assisted verification of the built extension
-on **macOS** (Chrome integration available), then decide on merging the branch
-stack, then optionally start Phase 5 (side panel).
+**Status (2026-06-07):** v1.0 (Phases 0–4) **verified in Chrome on macOS** and
+feature-complete. One defect was found during verification — multi-tab groups
+were dissolved during consolidation — **fixed** (`src/background/executor.ts`,
+commit `f2be518`) with a regression test and **re-verified intact** in the
+browser. The v1.0 stack is fast-forwarded onto `main` **locally**; not yet
+pushed (see "Remaining").
 
 **Project:** Chrome MV3 extension for keyboard-driven tab cleanup
-(consolidate → dedup → sort → review). Greenfield, authored entirely in this
-session.
+(consolidate → dedup → sort → review). Greenfield.
 
 **Repo (Forgejo, homelab):** http://192.168.5.30:3000/mj/tabby
 - Clone: `git clone ssh://git@192.168.5.30:2222/mj/tabby.git`
-- All branches pushed (see stack below). Built/authored at
-  `/home/mj/dev/projects/tabby` on the Linux box; clone fresh on the macOS
-  machine to verify.
 
 ---
 
-## Read these first (don't duplicate — they're authoritative)
+## Read these first (authoritative)
 
-- `DESIGN.md` — full design doc (workflow, URL categories, active-tab invariant,
+- `DESIGN.md` — full design (workflow, URL categories, active-tab invariant,
   architecture §3, host-agnostic view §3.4, edge cases §4).
-- `PLAN.md` — phased plan with checkboxes. Phases 0–4 are checked ✅; the one
-  **unchecked box in each of Phases 0–4 is the manual verify** — that's the
-  primary job for the next session. Phase 5 is unstarted/optional.
-- `README.md` — dev commands, "Load the unpacked extension" steps, keymap.
-- Git history: `git log --oneline` — one commit per phase, each message lists
-  exactly what it added.
+- `PLAN.md` — phased plan. Phases 0–4 done; their manual-verify boxes are now
+  checked, with the group-bug note. Phase 5 (side panel) is optional/unstarted.
+- `README.md` — dev commands, "load the unpacked extension" steps, keymap.
 
 ## Current state
 
-- **v1.0 feature-complete.** 68 tests pass. CI gate green: `pnpm typecheck`,
-  `pnpm lint`, `pnpm test`, `pnpm build`.
-- Branch stack (linear, all pushed to `origin`; **nothing merged to `main`**):
-  `main → phase-1-core → phase-2-orchestration → phase-3-review-ui → phase-4-settings`
-  Check out `phase-4-settings` for v1.0. `main` is only Phase 0.
-- Toolchain is intentionally very fresh: Vite 8, TypeScript 6, ESLint 10,
-  Vitest 4, `@crxjs/vite-plugin` 2.4.0, Preact 10. Node 26 / pnpm 11 were used.
+- **v1.0 verified + feature-complete.** Gate green: `pnpm typecheck`,
+  `pnpm lint`, `pnpm test` (**69 tests**), `pnpm build`.
+- **Git:** commit `f2be518` (the executor fix) sits on `phase-4-settings`, and
+  `main` was fast-forwarded to it — the whole linear stack is collapsed onto
+  `main` locally. Intermediate phase branches (`phase-1-core` …
+  `phase-3-review-ui`) are unchanged ancestors.
+- Toolchain (intentionally fresh): Vite 8, TypeScript 6, ESLint 10, Vitest 4,
+  `@crxjs/vite-plugin` 2.4.0, Preact 10. Built with Node ≥24 / pnpm 11.
 
-## What has NOT been verified in a real browser (the point of this session)
+## What the verification found
 
-All logic is unit-tested, but the extension has never been exercised in Chrome
-by the author of this code. Highest-risk areas, in order:
+Driven through **gstack's browser MCP** against the real Agent-profile Chrome.
+(The `claude-in-chrome` MCP turned out to be blocked from `chrome-extension://`
+pages and can't fire the trigger; gstack's AppleScript-based `Control_Chrome`
+*can* open extension pages, read the review DOM, and dispatch keymap
+`KeyboardEvent`s — but has **no `chrome.*` access**, so the messy
+multi-window / group / pinned setup and the `Cmd+Shift+K` trigger had to be done
+by hand. Worth knowing for the next live session.)
 
-1. **Strip reorder with tab groups** (`src/background/executor.ts`, `applyPlan`).
-   It moves the pinned block to index 0, then the rest (groups included, in
-   sorted order) as a single `chrome.tabs.move` array call, relying on Chrome
-   keeping group members contiguous because they're adjacent in the array. This
-   is the single most likely thing to misbehave. Watch group integrity + order.
-2. **Pinned tabs in non-focused windows stay put** (explicit product choice).
-   Confirm they are NOT moved/closed and their window isn't reported empty.
-3. **Blank-tab purge keeps the active tab** of each window (never rug-pull).
-4. **Cross-window consolidation + dedup** end to end.
-5. **Undo** (`u` / button) reopens closed tabs (restore-by-URL; group/pin state
-   is intentionally not fully restored in v1).
-6. **Settings actually change behavior** (e.g. toggle "Ignore ALL query params"
-   then rerun and see more merges).
+| # | Risk area | Result |
+|---|-----------|--------|
+| 1 | Strip reorder with tab groups | **Found + fixed** (below) |
+| 2 | Pinned tab in non-focused window stays put; not reported empty | ✅ |
+| 3 | Blank-tab purge keeps the active tab | ✅ |
+| 4 | Cross-window consolidation + dedup (active kept) | ✅ |
+| 5 | Undo reopens closed tabs | ✅ |
+| 6 | Settings actually change behavior | ✅ |
 
-## Suggested verification procedure (macOS + Chrome)
+### The bug + fix (risk #1)
 
-1. On the macOS machine, in the repo: `pnpm install` then `pnpm build` → produces
-   `dist/`.
-2. Chrome → `chrome://extensions` → enable Developer mode → **Load unpacked** →
-   select `dist/`. (Re-run `pnpm build` + click the reload icon after any code
-   change.)
-3. Set up a deliberately messy state: 2–3 windows; the same URL open several
-   times across windows (incl. variants like `?utm_source=x`, `#frag`, trailing
-   slash); a pinned tab in a non-focused window; a tab group of 2–3 tabs; a few
-   `about:blank`/new-tab tabs (leave one blank tab active in a window).
-4. Click the Tabby toolbar icon (or `Cmd+Shift+K`). Expected: everything gathers
-   into the focused window, dupes + non-active blanks gone, the group stays
-   intact and contiguous, the pinned tab untouched in its window, strip
-   URL-sorted, and a review tab opens showing the summary + sorted list.
-5. In the review list, exercise the keyboard fully (keymap is in `README.md` /
-   `DESIGN.md §2.5`): `j/k`, `x`/space to mark, `V`+move+`x` range, `/` filter,
-   `Cmd+Enter` to close marked, then `u` to undo. Confirm marked rows close and
-   undo reopens them.
-6. Open the options page (`chrome://extensions` → Tabby → Details → Extension
-   options, or right-click icon → Options). Flip a setting (e.g. blank-tab
-   policy, or "Ignore ALL query params"), confirm "Saved ✓", rerun cleanup, and
-   confirm the outcome differs.
+`applyPlan`'s final reorder moved every survivor — group members included — in a
+single `chrome.tabs.move`. Moving a grouped tab by id **ejects it from its
+group**, so a 3-tab group dissolved down to its last member (positions stayed
+contiguous; group membership didn't). The unit tests missed it because the fake
+`TabsDriver` never modeled group ejection — the bug lived exactly in the gap
+between the fake and a real browser.
 
-Capture anything that misbehaves with concrete repro (which tabs, which windows,
-before/after). Fixes for executor/reorder land in `src/background/executor.ts`;
-the pure planning is in `src/core/buildCleanupPlan.ts` (don't change core
-behavior without updating its tests in `test/core/`).
+**Fix** (`executor.ts`): reorder pinned-first, then walk the sorted survivors
+placing **whole groups via `chrome.tabGroups.move`** and only **ungrouped tabs
+via `chrome.tabs.move`** — grouped tab ids never pass through `moveTabs`. Added a
+regression test (fails on the old reorder, passes on the new) and updated the
+existing executor tests to the unit-by-unit strategy.
 
-## After verification — decisions waiting on the user
+> Deliberate trade-off: the executor no longer re-sorts tabs *within* a group
+> (doing so requires moving members by id, which re-breaks the group), so a
+> group keeps Chrome's preserved internal order while the review list still
+> shows the URL-sorted order. Restoring within-group sort safely is a separate,
+> carefully-verified change.
 
-- **Merge strategy:** the stack is linear and fast-forwardable to `main`. User
-  was asked whether to (a) FF-merge the stack to `main`, or (b) leave per-phase
-  branches / open PRs (Forgejo shows "Create pull request" links for each).
-  Don't merge without confirmation. Branches are already pushed.
-- **Phase 5 (side panel)** is optional and unstarted — see `PLAN.md` Phase 5.
-  The view is already host-agnostic (`src/view/ReviewView.tsx` depends only on
-  `ReviewTransport`), so it's a thin `sidepanel` shell reusing the same
-  component + an opt-in `sidePanel` permission flow. Only start if the user asks.
+## Remaining / next steps
 
-## Conventions established this session (keep following them)
+1. **Push** — `origin` (homelab `192.168.5.30:2222`) was **unreachable** from the
+   macOS machine during this session ("No route to host"). Run
+   `git push origin main phase-4-settings` from the homelab network / VPN.
+2. **Within-group sort** (optional) — see the trade-off note above.
+3. **Phase 5 — side panel** (optional, unstarted) — see `PLAN.md` Phase 5. The
+   view is already host-agnostic (`src/view/ReviewView.tsx` depends only on
+   `ReviewTransport`), so it's a thin `sidepanel` shell reusing the same
+   component + an opt-in `sidePanel` permission flow. Only start if asked.
 
-- **`src/core/` stays pure** (no `chrome.*`), so it's unit-testable without a
-  browser. Chrome access is confined to `src/background/` and the view's
-  transport. Maintain this split.
-- Each phase = its own commit with a detailed body; commit messages end with the
-  `Co-Authored-By: Claude Opus 4.8` trailer (per repo/global guidance).
-- Per global workflow: **branch before committing to `main`; commit/push only
-  when the user asks.**
-- After any change, re-run the four-part gate (typecheck/lint/test/build) before
-  declaring done.
+## Conventions (keep following)
+
+- **`src/core/` stays pure** (no `chrome.*`); Chrome access is confined to
+  `src/background/` and the view's transport. Maintain this split.
 - Pure logic gets pure tests; Chrome glue is dependency-injected and tested with
-  fakes (see `src/background/executor.ts` `TabsDriver` + `test/background/`).
-
-## Suggested skills for the next session
-
-- **`/browse`** (gstack) — per the user's `CLAUDE.md`, use this for ALL web
-  browsing / Chrome driving. **Do NOT use `mcp__claude-in-chrome__*` tools.**
-  Likely paired with **`/connect-chrome`** to attach to the user's Chrome for
-  loading/exercising the unpacked extension.
-- **`/verify`** — run the app and observe behavior to confirm the change works;
-  fits the "exercise the extension and confirm it does what it should" task.
-- **`/qa`** (gstack) — if a more structured QA pass of the UI is wanted.
-- **`/code-review`** — before merging the stack to `main`, review the cumulative
-  diff (`git diff main...phase-4-settings`).
+  fakes — **but keep the fakes honest about browser quirks.** The executor fake
+  now models group ejection, because that gap is exactly where the group bug
+  hid.
+- Commit messages end with the `Co-Authored-By: Claude Opus 4.8` trailer.
+  Branch before committing to `main`; commit/push only when asked.
+- After any change, re-run the four-part gate (typecheck/lint/test/build). Note:
+  the gate command is `pnpm test` (= `vitest run`); `pnpm test run` passes a
+  stray filter and silently runs **zero** tests.

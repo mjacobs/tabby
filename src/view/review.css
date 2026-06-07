@@ -1,0 +1,255 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #777;
+  --border: #e6e6e6;
+  --cursor-bg: #eef4ff;
+  --cursor-bar: #3b82f6;
+  --marked-bg: #fff1f0;
+  --marked-fg: #b42318;
+  --accent: #3b82f6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1b1d;
+    --fg: #ececec;
+    --muted: #9a9a9a;
+    --border: #333;
+    --cursor-bg: #1e2a40;
+    --cursor-bar: #5b9bff;
+    --marked-bg: #3a1f1d;
+    --marked-fg: #ff9b8f;
+    --accent: #5b9bff;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font: 13.5px/1.4 system-ui, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 1rem 4rem;
+}
+
+/* Header ------------------------------------------------------------------ */
+.header {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 5;
+}
+
+.header h1 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.counts {
+  color: var(--muted);
+  flex: 1;
+}
+
+.counts b {
+  color: var(--fg);
+}
+
+.filter {
+  flex: 1;
+  max-width: 320px;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.btn {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn.primary {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Group divider ----------------------------------------------------------- */
+.group-divider {
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.6rem 0 0.2rem 2rem;
+}
+
+/* Rows -------------------------------------------------------------------- */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.3rem 0.5rem;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.row.cursor {
+  background: var(--cursor-bg);
+  border-left-color: var(--cursor-bar);
+}
+
+.row.marked .title,
+.row.marked .url {
+  color: var(--marked-fg);
+  text-decoration: line-through;
+}
+
+.row.marked {
+  background: var(--marked-bg);
+}
+
+.mark {
+  flex: none;
+}
+
+.favicon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.favicon.placeholder {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.url {
+  color: var(--muted);
+  flex: none;
+  max-width: 38%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badges {
+  flex: none;
+  display: flex;
+  gap: 0.3rem;
+}
+
+.badge {
+  font-size: 0.68rem;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+}
+
+.badge.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Toast + help ------------------------------------------------------------ */
+.toast {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--fg);
+  color: var(--bg);
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.empty {
+  color: var(--muted);
+  padding: 2rem 0.5rem;
+}
+
+.help {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.help-card {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  max-width: 460px;
+  width: 90%;
+}
+
+.help-card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.help-card dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0;
+}
+
+.help-card dt {
+  font-family: ui-monospace, monospace;
+  color: var(--accent);
+}
+
+.help-card dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+kbd {
+  font-family: ui-monospace, monospace;
+  background: var(--border);
+  border-radius: 4px;
+  padding: 0 0.25rem;
+}

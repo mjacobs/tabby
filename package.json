@@ -15,7 +15,7 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@crxjs/vite-plugin": "2.4.0",
+    "@crxjs/vite-plugin": "1.0.14",
     "@eslint/js": "^10.0.1",
     "@preact/preset-vite": "^2.10.5",
     "@testing-library/preact": "^3.2.4",

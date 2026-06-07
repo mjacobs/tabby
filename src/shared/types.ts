@@ -16,6 +16,8 @@ export interface TabInfo {
   groupId?: number;
   /** ms epoch of last activation; used by the keep-most-recent policy. */
   lastAccessed?: number;
+  /** Display-only favicon URL; ignored by core logic. */
+  favIconUrl?: string;
 }
 
 /** Which copy survives within a duplicate group. */

@@ -71,20 +71,25 @@ review page opens with a live summary. ✅ (pending the manual multi-window chec
 
 Goal: the keep/remove review experience from DESIGN §2.5.
 
-- [ ] `view/state.ts` — cursor, marks set, filter, derived counters.
-- [ ] `view/ReviewView.tsx` + `row.tsx` — rows with favicon/url/title/badges,
-      group headers, virtualized list.
-- [ ] `view/keymap.ts` — full key map (j/k, x, X, V-range, /, a, u, enter,
+- [x] `view/state.ts` — cursor, marks set, filter, visual-range, derived counts.
+- [x] `view/ReviewView.tsx` + `Row.tsx` — rows with favicon/url/title/badges,
+      group dividers. (Virtualization deferred — note below.)
+- [x] `view/keymap.ts` — key map (j/k, g/G, x/space, V-range, a/A, /, u, enter,
       Cmd/Ctrl+Enter commit, ?, esc).
-- [ ] `view/shells/page.tsx` — mount in `review.html` with page transport.
-- [ ] Commit path → background closes marked tabs (recorded for undo).
-- [ ] Live sync to `chrome.tabs.onRemoved/onUpdated`.
-- [ ] `?` cheatsheet overlay.
-- [ ] Tests: `@testing-library/preact` for key handling, marking, commit,
-      filter, undo against a mock transport.
+- [x] `view/transport.ts` + page shell (`review/review.tsx`) — mounts the
+      host-agnostic ReviewView with the chrome transport.
+- [x] Commit path → background closes marked tabs (recorded for undo).
+- [x] Live sync to `chrome.tabs.onRemoved/onUpdated` via the transport.
+- [x] `?` cheatsheet overlay.
+- [x] Tests: pure state + keymap; jsdom component tests (load→mark→commit→remove,
+      cursor move, jump) against a fake transport. (66 tests total.)
 - [ ] **Verify manually:** prune ~30 tabs entirely from the keyboard; undo works.
 
+> Deferred: list virtualization (fine for typical counts; revisit for 500+),
+> collapsible group headers, and the `gg` two-key top (single `g` used instead).
+
 **Exit:** full one-click → review → keyboard-prune → undo loop is usable daily.
+✅ (pending the manual keyboard pass)
 
 ---
 

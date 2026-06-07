@@ -19,6 +19,7 @@ export function tabInfoFromChromeTab(tab: chrome.tabs.Tab): TabInfo {
     active: tab.active,
     groupId: tab.groupId,
     lastAccessed: tab.lastAccessed,
+    favIconUrl: tab.favIconUrl,
   };
 }
 

@@ -1,33 +1,17 @@
-// Background service worker (MV3).
-//
-// Phase 0: just opens the review page on trigger so the extension is loadable
-// and the wiring is verifiable. The consolidate → dedup → sort orchestration
-// lands in Phase 2 (see PLAN.md).
+// Background service worker (MV3) entry point. Wires the triggers to the
+// cleanup pipeline and registers the view message handlers.
 
-const REVIEW_PAGE = 'src/review/review.html';
-
-async function openReview(): Promise<void> {
-  const url = chrome.runtime.getURL(REVIEW_PAGE);
-
-  // Reuse an existing Tabby review tab if one is already open.
-  const [existing] = await chrome.tabs.query({ url });
-  if (existing?.id != null) {
-    await chrome.tabs.update(existing.id, { active: true });
-    if (existing.windowId != null) {
-      await chrome.windows.update(existing.windowId, { focused: true });
-    }
-    return;
-  }
-
-  await chrome.tabs.create({ url });
-}
+import { registerMessageHandlers } from '@/background/messageHandlers';
+import { runCleanup } from '@/background/orchestrator';
 
 chrome.action.onClicked.addListener(() => {
-  void openReview();
+  void runCleanup();
 });
 
 chrome.commands.onCommand.addListener((command) => {
   if (command === 'run-cleanup') {
-    void openReview();
+    void runCleanup();
   }
 });
+
+registerMessageHandlers();

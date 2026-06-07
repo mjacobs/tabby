@@ -45,19 +45,25 @@ Goal: the whole pipeline as pure functions with no browser dependency.
 
 Goal: trigger → real tabs get consolidated, deduped, sorted.
 
-- [ ] `background/executor.ts` — apply a plan via `chrome.tabs.move`,
-      `chrome.tabGroups.move`, `chrome.tabs.remove`; tolerate missing tab ids.
-- [ ] `background/orchestrator.ts` — snapshot → `buildCleanupPlan` → execute →
-      record auto-dedup closes → open/focus review page with surviving set.
-- [ ] `background/undo.ts` — close buffer + `chrome.sessions.restore` fallback.
-- [ ] `background/messaging.ts` — typed worker↔view contract.
-- [ ] Wire toolbar action **and** `run-cleanup` command to the orchestrator.
+- [x] `background/snapshot.ts` — chrome.windows → `TabInfo` (pure mapper) +
+      review-tab exclusion.
+- [x] `background/executor.ts` — injectable `TabsDriver` + `applyPlan`
+      (move/group-move/remove/createWindow); tolerant of missing tab ids.
+- [x] `background/orchestrator.ts` — snapshot → `buildCleanupPlan` → record
+      undo → execute → stash review state → open/focus review page.
+- [x] `background/undo.ts` — storage.session close buffer + restore.
+      (chrome.sessions.restore upgrade deferred — see DESIGN §2.6.)
+- [x] `shared/messages.ts` + `background/messageHandlers.ts` — typed
+      worker↔view contract (getReview/jumpTo/commitClose/undo/closeEmptyWindows).
+- [x] Wire toolbar action **and** `run-cleanup` command to the orchestrator.
+- [x] Review placeholder reads the stashed summary (proves the pipeline).
+- [x] Tests: fake-driver `applyPlan` sequencing + pure mapper (48 tests total).
 - [ ] **Verify manually:** open 3 windows with overlapping dupes incl. a pinned
       tab and a tab group → trigger → tabs gather into focused window, dupes
       gone, groups intact, pinned untouched, strip sorted.
 
 **Exit:** the consolidate→dedup→sort pipeline works end-to-end on real tabs;
-review page opens (UI can still be placeholder).
+review page opens with a live summary. ✅ (pending the manual multi-window check)
 
 ---
 

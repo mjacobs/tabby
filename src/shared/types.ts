@@ -1,0 +1,42 @@
+// Shared domain types. Kept free of Chrome API types so `core/` stays pure and
+// unit-testable; the background layer maps `chrome.tabs.Tab` onto these.
+
+/** The subset of tab data Tabby's core logic reasons about. */
+export interface TabInfo {
+  id: number;
+  windowId: number;
+  index: number;
+  url: string;
+  title: string;
+  pinned: boolean;
+  audible: boolean;
+  /** chrome.tabs.TAB_ID_NONE-safe group id, or undefined when ungrouped. */
+  groupId?: number;
+  /** ms epoch of last activation; used by the keep-most-recent policy. */
+  lastAccessed?: number;
+}
+
+/** Which copy survives within a duplicate group. */
+export type KeepPolicy = 'most-recent' | 'oldest' | 'leftmost';
+
+/** Where consolidated tabs land. */
+export type ConsolidateTarget = 'focused-window' | 'new-window';
+
+/** User-tunable behavior, persisted in chrome.storage.sync. */
+export interface Settings {
+  normalize: {
+    dropFragment: boolean;
+    stripTrackingParams: boolean;
+    dropTrailingSlash: boolean;
+    ignoreWww: boolean;
+    stripAllQuery: boolean;
+    /** Extra tracking-param patterns (supports `prefix*` globs). */
+    trackingParams: string[];
+  };
+  keepPolicy: KeepPolicy;
+  protectPinned: boolean;
+  protectAudible: boolean;
+  preserveGroups: boolean;
+  consolidateTarget: ConsolidateTarget;
+  confirmBeforeCommit: boolean;
+}

@@ -5,6 +5,7 @@
 // quirks live in one small adapter (`chromeDriver`).
 
 import type { CleanupPlan } from '@/core/buildCleanupPlan';
+import { isGrouped } from '@/shared/tabs';
 
 /** The browser operations the executor needs. Index -1 means "append". */
 export interface TabsDriver {
@@ -16,40 +17,70 @@ export interface TabsDriver {
 }
 
 /**
- * Execute the plan: close losers, consolidate survivors into the target window
- * (groups as units, pinned tabs left where the plan says), then reorder the
- * strip to the sorted target order (pinned block first).
+ * Execute the plan: close losers, then realize the sorted target order in the
+ * strip — pinned tabs lead, then each unit placed left-to-right at a running
+ * index. Both consolidation (pulling tabs in from other windows) and the final
+ * reorder happen in this single pass, since `chrome.tabs.move` /
+ * `chrome.tabGroups.move` reposition cross-window in one call.
+ *
+ * Group integrity: a tab group is repositioned with `moveGroup` (a whole-group
+ * move) and its members are NEVER moved by id. Moving a grouped tab with
+ * `chrome.tabs.move` ejects it from its group, so the earlier approach — a
+ * single ordered `moveTabs` over the whole strip — silently dissolved every
+ * multi-tab group down to its last member even though the tabs stayed
+ * positionally contiguous. Groups travel as units instead. (A group's internal
+ * order is whatever `moveGroup` preserves; the review list still shows the
+ * sorted order.)
  */
 export async function applyPlan(
   plan: CleanupPlan,
   driver: TabsDriver,
 ): Promise<void> {
-  const targetId =
-    plan.targetWindowId ?? (await driver.createWindow());
+  const targetId = plan.targetWindowId ?? (await driver.createWindow());
 
   if (plan.closeTabIds.length) {
     await driver.removeTabs(plan.closeTabIds);
   }
 
-  // Bring whole groups in first, then ungrouped tabs (appended to the end).
-  for (const groupId of plan.groupMoveIds) {
-    await driver.moveGroup(groupId, targetId, -1);
-  }
-  if (plan.moveTabIds.length) {
-    await driver.moveTabs(plan.moveTabIds, targetId, -1);
-  }
-
-  // Reorder: pinned tabs must lead the strip, then the rest in sorted order.
-  // Group members are adjacent in reviewTabs, so a single ordered move keeps
-  // each group contiguous.
+  // Pinned tabs lead the strip.
   const pinnedIds = plan.reviewTabs.filter((t) => t.pinned).map((t) => t.id);
-  const restIds = plan.reviewTabs.filter((t) => !t.pinned).map((t) => t.id);
   if (pinnedIds.length) {
     await driver.moveTabs(pinnedIds, targetId, 0);
   }
-  if (restIds.length) {
-    await driver.moveTabs(restIds, targetId, pinnedIds.length);
+
+  // Walk the remaining survivors in sorted order. Consecutive ungrouped tabs
+  // move together as one batch; each group moves as a whole unit.
+  let index = pinnedIds.length;
+  const rest = plan.reviewTabs.filter((t) => !t.pinned);
+  let looseRun: number[] = [];
+
+  const flushLoose = async (): Promise<void> => {
+    if (looseRun.length === 0) return;
+    await driver.moveTabs(looseRun, targetId, index);
+    index += looseRun.length;
+    looseRun = [];
+  };
+
+  for (let i = 0; i < rest.length; ) {
+    const t = rest[i];
+    if (isGrouped(t)) {
+      await flushLoose();
+      const groupId = t.groupId!;
+      let size = 0;
+      // reviewTabs keeps a group's members contiguous, so this run is the
+      // whole group.
+      while (i < rest.length && rest[i].groupId === groupId) {
+        size += 1;
+        i += 1;
+      }
+      await driver.moveGroup(groupId, targetId, index);
+      index += size;
+    } else {
+      looseRun.push(t.id);
+      i += 1;
+    }
   }
+  await flushLoose();
 }
 
 /** Run an operation over ids in bulk, falling back to per-id on failure so one

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildCleanupPlan, type WindowSnapshot } from '@/core/buildCleanupPlan';
 import { applyPlan, type TabsDriver } from '@/background/executor';
+import { isGrouped } from '@/shared/tabs';
 import { settings, tab } from '../helpers';
 
 /** A fake driver that records the operations applyPlan issues, in order. */
@@ -40,11 +41,10 @@ describe('applyPlan', () => {
     const { driver, calls } = fakeDriver();
 
     return applyPlan(plan, driver).then(() => {
-      // Tab b is consolidated into window 1, then the strip is reordered.
-      expect(calls).toContain('move 2 -> w1@-1');
       // No closes in this plan.
       expect(calls.some((c) => c.startsWith('remove'))).toBe(false);
-      // Reorder places the sorted survivors (a before b) at index 0.
+      // A single ordered move both consolidates b into window 1 and places the
+      // sorted survivors (a before b) at index 0.
       expect(calls).toContain(`move ${a.id},${b.id} -> w1@0`);
     });
   });
@@ -72,7 +72,52 @@ describe('applyPlan', () => {
     const { driver, calls } = fakeDriver();
 
     await applyPlan(plan, driver);
-    expect(calls).toContain('group 5 -> w1@-1');
+    // The group is positioned as a unit at its sorted slot (index 0 here).
+    expect(calls).toContain('group 5 -> w1@0');
+  });
+
+  it('repositions groups as units, never moving grouped tabs by id', async () => {
+    // Regression: moving a grouped tab with chrome.tabs.move ejects it from its
+    // group, so a multi-tab group must travel via moveGroup only. The previous
+    // reorder moved every survivor (group members included) in one tabs.move,
+    // which dissolved the group down to its last member in a real browser —
+    // invisible to the old call-recording fake. This asserts the contract that
+    // prevents it: no grouped tab id ever passes through moveTabs.
+    const loose1 = tab({ url: 'https://a.com', windowId: 1 });
+    const g1 = tab({ url: 'https://g.com/c', windowId: 2, groupId: 7 });
+    const g2 = tab({ url: 'https://g.com/a', windowId: 2, groupId: 7 });
+    const g3 = tab({ url: 'https://g.com/b', windowId: 2, groupId: 7 });
+    const loose2 = tab({ url: 'https://z.com', windowId: 2 });
+    const plan = buildCleanupPlan({
+      windows: [win(1, true, [loose1]), win(2, false, [g1, g2, g3, loose2])],
+      settings: settings(),
+    });
+
+    const movedByTabsMove: number[] = [];
+    const groupMoves: number[] = [];
+    const driver: TabsDriver = {
+      async removeTabs() {},
+      async moveTabs(moveIds) {
+        movedByTabsMove.push(...moveIds);
+      },
+      async moveGroup(groupId) {
+        groupMoves.push(groupId);
+      },
+      async createWindow() {
+        return 99;
+      },
+    };
+
+    await applyPlan(plan, driver);
+
+    const groupedIds = new Set(
+      plan.reviewTabs.filter(isGrouped).map((t) => t.id),
+    );
+    expect(groupedIds.size).toBe(3); // sanity: all 3 members survived planning
+    expect(groupMoves).toContain(7); // the group is repositioned as a unit
+    for (const id of movedByTabsMove) {
+      expect(groupedIds.has(id)).toBe(false); // ...and never as loose tabs
+    }
   });
 
   it('creates a window in new-window mode and targets it', async () => {
@@ -85,7 +130,7 @@ describe('applyPlan', () => {
 
     await applyPlan(plan, driver);
     expect(calls[0]).toBe('createWindow');
-    expect(calls).toContain(`move ${a.id} -> w99@-1`); // moved into the new window id
+    expect(calls).toContain(`move ${a.id} -> w99@0`); // moved into the new window id
   });
 
   it('leads the strip with pinned tabs', async () => {

@@ -14,6 +14,8 @@ export interface ReviewState {
   emptyWindowIds: number[];
   /** Protected pinned tabs left behind in other windows. */
   stayingPinnedTabIds: number[];
+  /** Whether to confirm before closing marked tabs (from settings). */
+  confirmBeforeCommit: boolean;
   /** ms epoch when this cleanup ran. */
   generatedAt: number;
 }

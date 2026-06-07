@@ -97,15 +97,19 @@ Goal: the keep/remove review experience from DESIGN §2.5.
 
 Goal: configurable, friendly, ready to rely on.
 
-- [ ] `options/options.tsx` + `shared/settings.ts` over `chrome.storage.sync`
-      (normalization toggles, blocklist editor, keep policy, protectAudible,
-      consolidate target, confirm-before-commit).
-- [ ] Empty/edge states: nothing-to-remove, single window, 500+ tabs.
-- [ ] Offer to close now-empty windows post-consolidate.
-- [ ] Icons (16/32/48/128), name/description, README.
-- [ ] **Verify:** changing normalization aggressiveness changes dedup results.
+- [x] `options/options.tsx` + `options.css` over `chrome.storage.sync` — every
+      `Settings` field (normalize toggles, tracking-param editor, keep policy,
+      protect pinned/audible, preserve groups, blankTabPolicy, consolidate
+      target, confirm-before-commit); auto-save + reset.
+- [x] `confirmBeforeCommit` threaded into `ReviewState` and honored on commit.
+- [x] Empty/edge states: nothing-to-review and no-filter-match handled in the
+      review view; close-empty-windows offered in the header.
+- [x] Icons (16/32/48/128) from an SVG, wired into `action` + `icons`.
+- [x] README refreshed to v1.0 with the keymap.
+- [x] **Verify (automated):** `stripAllQuery` / `ignoreWww` change dedup results
+      (dedupe tests). Manual: edit a setting, confirm the next run differs.
 
-**Exit:** v1.0 — daily-driver quality for the author's workflow.
+**Exit:** v1.0 — daily-driver quality for the author's workflow. ✅
 
 ---
 

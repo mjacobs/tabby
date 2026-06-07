@@ -50,6 +50,7 @@ export async function runCleanup(): Promise<void> {
     closedCount: plan.closeTabIds.length,
     emptyWindowIds: plan.emptyWindowIds,
     stayingPinnedTabIds: plan.stayingPinnedTabIds,
+    confirmBeforeCommit: settings.confirmBeforeCommit,
     generatedAt: Date.now(),
   });
 

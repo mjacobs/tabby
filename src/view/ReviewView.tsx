@@ -17,6 +17,7 @@ interface Meta {
   closedCount: number;
   emptyWindowIds: number[];
   stayingPinnedTabIds: number[];
+  confirmBeforeCommit: boolean;
 }
 
 const HELP: [string, string][] = [
@@ -41,9 +42,11 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
   const [toast, setToast] = useState<string | null>(null);
 
   const filterRef = useRef<HTMLInputElement>(null);
-  // Keyboard handler reads the latest state without re-binding the listener.
+  // Keyboard handler reads the latest state/flags without re-binding the listener.
   const stateRef = useRef(state);
   stateRef.current = state;
+  const confirmRef = useRef(false);
+  confirmRef.current = meta?.confirmBeforeCommit ?? false;
 
   // Load the stashed cleanup result.
   useEffect(() => {
@@ -54,6 +57,7 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
           closedCount: review.closedCount,
           emptyWindowIds: review.emptyWindowIds,
           stayingPinnedTabIds: review.stayingPinnedTabIds,
+          confirmBeforeCommit: review.confirmBeforeCommit,
         });
       }
       setLoaded(true);
@@ -99,6 +103,12 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
         const ids = [...stateRef.current.marked];
         if (ids.length === 0) {
           setToast('Nothing marked.');
+          return;
+        }
+        if (
+          confirmRef.current &&
+          !window.confirm(`Close ${ids.length} tab(s)?`)
+        ) {
           return;
         }
         const closed = await transport.commitClose(ids);

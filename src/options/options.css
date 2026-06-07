@@ -1,0 +1,154 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #777;
+  --border: #e6e6e6;
+  --accent: #3b82f6;
+  --card: #fafafa;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1b1d;
+    --fg: #ececec;
+    --muted: #9a9a9a;
+    --border: #333;
+    --accent: #5b9bff;
+    --card: #232325;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.5 system-ui, sans-serif;
+}
+
+.opt {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.opt > header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.opt h1 {
+  font-size: 1.3rem;
+  margin: 0 0 1rem;
+}
+
+.saved {
+  color: var(--accent);
+  font-size: 0.85rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.saved.show {
+  opacity: 1;
+}
+
+section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+
+section h2 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.desc {
+  color: var(--muted);
+  margin: 0.2rem 0 0.8rem;
+  font-size: 0.85rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+  cursor: pointer;
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.field {
+  display: block;
+  margin-top: 0.6rem;
+}
+
+.field > span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+textarea {
+  width: 100%;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  resize: vertical;
+}
+
+textarea:disabled {
+  opacity: 0.5;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 0.5rem 0 0;
+}
+
+footer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.reset {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+code {
+  font-family: ui-monospace, monospace;
+  background: var(--border);
+  border-radius: 4px;
+  padding: 0 0.25rem;
+}

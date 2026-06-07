@@ -17,6 +17,7 @@ function makeTransport(tabs: TabInfo[]) {
     closedCount: 2,
     emptyWindowIds: [],
     stayingPinnedTabIds: [],
+    confirmBeforeCommit: false,
     generatedAt: 0,
   };
   const transport: ReviewTransport = {

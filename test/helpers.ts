@@ -20,7 +20,11 @@ export function tab(overrides: Partial<TabInfo> = {}): TabInfo {
 }
 
 /** Settings with deep-merged overrides for the common nested `normalize` block. */
-export function settings(overrides: Partial<Settings> = {}): Settings {
+type SettingsOverrides = Partial<Omit<Settings, 'normalize'>> & {
+  normalize?: Partial<Settings['normalize']>;
+};
+
+export function settings(overrides: SettingsOverrides = {}): Settings {
   return {
     ...DEFAULT_SETTINGS,
     ...overrides,

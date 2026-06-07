@@ -147,6 +147,30 @@ describe('dedupe', () => {
     });
   });
 
+  describe('settings change what counts as a duplicate', () => {
+    it('stripAllQuery merges tabs that differ only by query', () => {
+      const a = tab({ url: 'https://ex.com/p?q=1' });
+      const b = tab({ url: 'https://ex.com/p?q=2' });
+
+      // Default: different real query params => distinct.
+      expect(dedupe([a, b], settings()).close).toEqual([]);
+      // Aggressive: ignore all query => duplicates.
+      expect(
+        dedupe([a, b], settings({ normalize: { stripAllQuery: true } })).close,
+      ).toHaveLength(1);
+    });
+
+    it('ignoreWww merges www and bare domains only when enabled', () => {
+      const a = tab({ url: 'https://www.ex.com/p' });
+      const b = tab({ url: 'https://ex.com/p' });
+
+      expect(dedupe([a, b], settings()).close).toEqual([]);
+      expect(
+        dedupe([a, b], settings({ normalize: { ignoreWww: true } })).close,
+      ).toHaveLength(1);
+    });
+  });
+
   it('is a no-op when there are no duplicates', () => {
     const tabs = [
       tab({ url: 'https://a.com' }),

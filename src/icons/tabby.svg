@@ -1,0 +1,16 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5b9bff"/>
+      <stop offset="1" stop-color="#3b6ef0"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="116" height="116" rx="26" fill="url(#g)"/>
+  <!-- two tabby-cat ears seated on the card -->
+  <path d="M34 50 L28 24 L58 44 Z" fill="#fff"/>
+  <path d="M94 50 L100 24 L70 44 Z" fill="#fff"/>
+  <!-- rounded card body -->
+  <rect x="32" y="44" width="64" height="52" rx="12" fill="#ffffff"/>
+  <rect x="44" y="62" width="40" height="7" rx="3.5" fill="#3b6ef0"/>
+  <rect x="44" y="76" width="26" height="7" rx="3.5" fill="#9cc0ff"/>
+</svg>

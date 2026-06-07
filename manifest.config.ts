@@ -7,9 +7,19 @@ export default defineManifest({
   name: 'Tabby',
   version: pkg.version,
   description: pkg.description,
+  icons: {
+    16: 'src/icons/icon16.png',
+    32: 'src/icons/icon32.png',
+    48: 'src/icons/icon48.png',
+    128: 'src/icons/icon128.png',
+  },
   // Clicking the toolbar icon runs the cleanup pipeline (handled in background).
   action: {
     default_title: 'Tabby: clean up tabs',
+    default_icon: {
+      16: 'src/icons/icon16.png',
+      32: 'src/icons/icon32.png',
+    },
   },
   background: {
     service_worker: 'src/background/index.ts',

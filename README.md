@@ -9,10 +9,18 @@ for the phased execution plan.
 
 ## Status
 
-**Phase 0 (scaffold) complete.** The extension loads, the toolbar action and
-keyboard shortcut open the review page, and the pure `core/` logic layer has its
-first tested module (`normalizeUrl`). The cleanup pipeline and review UI follow
-in Phases 1–3.
+**v1.0 feature-complete (Phases 0–4).** One click (or `Ctrl/Cmd+Shift+K`)
+consolidates every window's tabs into the focused one, removes duplicates and
+blank-tab clutter, sorts by URL, and opens a keyboard-driven review list to
+prune what's left — with undo. A full settings page tunes the behavior. 68
+tests, all green. Side-panel surface (Phase 5) is the remaining optional
+enhancement; see `PLAN.md`.
+
+### Keyboard (review list)
+
+`j`/`k` move · `g`/`G` top/bottom · `x`/`space` mark · `V` then move then `x`
+range-mark · `a`/`A` mark-all/clear · `/` filter · `Enter` jump to tab ·
+`⌘/Ctrl+Enter` close marked · `u` undo · `?` help.
 
 ## Development
 

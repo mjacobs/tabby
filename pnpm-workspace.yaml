@@ -1,0 +1,2 @@
+minimumReleaseAgeExclude:
+  - '@crxjs/vite-plugin@2.5.0'

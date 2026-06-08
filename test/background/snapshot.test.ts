@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { tabInfoFromChromeTab } from '@/background/snapshot';
+import { tabInfoFromChromeTab } from '@/shared/tabs';
 
 // A chrome.tabs.Tab is structurally large; build the subset we map and cast.
 function chromeTab(over: Partial<chrome.tabs.Tab>): chrome.tabs.Tab {

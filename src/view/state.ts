@@ -21,6 +21,7 @@ export interface ReviewUiState {
 
 export type Action =
   | { type: 'load'; tabs: TabInfo[] }
+  | { type: 'sync'; tabs: TabInfo[] }
   | { type: 'move'; delta: number }
   | { type: 'moveTo'; to: 'top' | 'bottom' }
   | { type: 'toggleMark' }
@@ -70,6 +71,19 @@ export function reduce(state: ReviewUiState, action: Action): ReviewUiState {
   switch (action.type) {
     case 'load':
       return initialState(action.tabs);
+
+    case 'sync': {
+      // Reconcile to live tabs without disturbing the user's interaction:
+      // keep marks for tabs still present, clamp the cursor, preserve filter,
+      // visual-range, and help. (kata#xtwp)
+      const present = new Set(action.tabs.map((t) => t.id));
+      const marked = new Set([...state.marked].filter((id) => present.has(id)));
+      const next = { ...state, tabs: action.tabs, marked };
+      const count = visibleTabs(next).length;
+      const visualAnchor =
+        state.visualAnchor == null ? null : clampCursor(state.visualAnchor, count);
+      return { ...next, cursor: clampCursor(state.cursor, count), visualAnchor };
+    }
 
     case 'move': {
       const count = visibleTabs(state).length;

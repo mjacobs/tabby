@@ -1,27 +1,9 @@
-// Bridges Chrome's tab model into Tabby's pure `TabInfo`. The mapping function
-// is pure (takes a plain tab-shaped object) so it's unit-testable; the snapshot
-// function around it is the only place that touches chrome.windows.
+// Snapshots Chrome's windows into Tabby's pure `WindowSnapshot`s. The pure
+// chrome.tabs.Tab → TabInfo mapping lives in shared/tabs.ts (so the view can
+// reuse it); this module is the only place that touches chrome.windows.
 
 import type { WindowSnapshot } from '@/core/buildCleanupPlan';
-import type { TabInfo } from '@/shared/types';
-
-/** Map a chrome.tabs.Tab onto Tabby's TabInfo. Pure. */
-export function tabInfoFromChromeTab(tab: chrome.tabs.Tab): TabInfo {
-  return {
-    id: tab.id ?? -1,
-    windowId: tab.windowId,
-    index: tab.index,
-    // url requires the "tabs" permission; pendingUrl covers not-yet-committed loads.
-    url: tab.url || tab.pendingUrl || '',
-    title: tab.title ?? '',
-    pinned: tab.pinned,
-    audible: tab.audible ?? false,
-    active: tab.active,
-    groupId: tab.groupId,
-    lastAccessed: tab.lastAccessed,
-    favIconUrl: tab.favIconUrl,
-  };
-}
+import { tabInfoFromChromeTab } from '@/shared/tabs';
 
 /**
  * Snapshot every normal window's tabs as WindowSnapshots, excluding Tabby's own

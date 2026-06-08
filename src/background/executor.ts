@@ -31,11 +31,14 @@ export interface TabsDriver {
  * positionally contiguous. Groups travel as units instead. (A group's internal
  * order is whatever `moveGroup` preserves; the review list still shows the
  * sorted order.)
+ *
+ * Returns the resolved target window id (the focused window, or the one created
+ * for new-window mode) so the review can mirror that window's live tab state.
  */
 export async function applyPlan(
   plan: CleanupPlan,
   driver: TabsDriver,
-): Promise<void> {
+): Promise<number> {
   const targetId = plan.targetWindowId ?? (await driver.createWindow());
 
   if (plan.closeTabIds.length) {
@@ -81,6 +84,8 @@ export async function applyPlan(
     }
   }
   await flushLoose();
+
+  return targetId;
 }
 
 /** Run an operation over ids in bulk, falling back to per-id on failure so one

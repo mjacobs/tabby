@@ -8,6 +8,8 @@ import type { Settings, TabInfo } from '@/shared/types';
 export interface ReviewState {
   /** Surviving tabs in the target window, in final sorted order. */
   reviewTabs: TabInfo[];
+  /** The consolidated window the review mirrors live (kata#xtwp). */
+  targetWindowId: number;
   /** How many tabs the auto-dedup/purge stage closed. */
   closedCount: number;
   /** Non-target windows the cleanup emptied (offer to close). */

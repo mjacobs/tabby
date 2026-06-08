@@ -1,6 +1,6 @@
 // Worker-side handlers for ViewRequests. Registered once from index.ts.
 
-import { tabInfoFromChromeTab } from '@/background/snapshot';
+import { tabInfoFromChromeTab } from '@/shared/tabs';
 import { getReview } from '@/background/reviewStore';
 import { runCleanup } from '@/background/orchestrator';
 import { dumpState, logState } from '@/background/stateLog';

@@ -6,8 +6,9 @@ import {
   useState,
 } from 'preact/hooks';
 
-import type { TabInfo } from '@/shared/types';
+import type { Settings, TabInfo } from '@/shared/types';
 import { isGrouped } from '@/shared/tabs';
+import { sortTabs } from '@/core/sortTabs';
 import { keymap, type Intent } from '@/view/keymap';
 import { Row } from '@/view/Row';
 import {
@@ -54,40 +55,65 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
   const confirmRef = useRef(false);
   confirmRef.current = meta?.confirmBeforeCommit ?? false;
 
-  // Pull the stashed cleanup result and replace the view's state with it.
-  // Used for the initial mount and to reconcile to the latest stash whenever
-  // the worker re-runs or the page regains focus (kata#zpsb).
-  const refresh = useCallback(() => {
-    return transport.getReview().then((review) => {
-      if (review) {
-        dispatch({ type: 'load', tabs: review.reviewTabs });
-        setMeta({
-          closedCount: review.closedCount,
-          emptyWindowIds: review.emptyWindowIds,
-          stayingPinnedTabIds: review.stayingPinnedTabIds,
-          confirmBeforeCommit: review.confirmBeforeCommit,
-        });
-      }
-      setLoaded(true);
-    });
+  // The window the review mirrors + the sort settings, read by the reconcile
+  // path. Refs so the event/focus handlers always see the latest without
+  // re-binding their listeners.
+  const windowIdRef = useRef<number | null>(null);
+  const settingsRef = useRef<Settings | null>(null);
+
+  // Fetch the run summary (the "what the last run did" header) and the sort
+  // settings into refs/meta. The list itself comes from live tabs (reconcile).
+  const loadMeta = useCallback(async () => {
+    const [review, settings] = await Promise.all([
+      transport.getReview(),
+      transport.getSettings(),
+    ]);
+    settingsRef.current = settings;
+    if (review) {
+      windowIdRef.current = review.targetWindowId;
+      setMeta({
+        closedCount: review.closedCount,
+        emptyWindowIds: review.emptyWindowIds,
+        stayingPinnedTabIds: review.stayingPinnedTabIds,
+        confirmBeforeCommit: review.confirmBeforeCommit,
+      });
+    }
+    return review;
   }, [transport]);
 
-  // Initial load.
+  // Reconcile the displayed list to the window's live tabs, re-sorted with the
+  // same ordering the cleanup used so new tabs slot in sensibly. Marks/cursor/
+  // filter are preserved by the 'sync' reducer. (kata#xtwp)
+  const reconcile = useCallback(async () => {
+    const windowId = windowIdRef.current;
+    const settings = settingsRef.current;
+    if (windowId == null || settings == null) return;
+    const tabs = await transport.queryTabs(windowId);
+    dispatch({ type: 'sync', tabs: sortTabs(tabs, settings) });
+  }, [transport]);
+
+  // Mount: paint the stashed snapshot for an instant first frame, then replace
+  // it with live state.
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void (async () => {
+      const review = await loadMeta();
+      if (review) dispatch({ type: 'load', tabs: review.reviewTabs });
+      setLoaded(true);
+      await reconcile();
+    })();
+  }, [loadMeta, reconcile]);
 
-  // Push path: the worker re-stashed after another run — reconcile in place.
-  useEffect(() => transport.onReviewUpdated(() => void refresh()), [
-    transport,
-    refresh,
-  ]);
+  // The worker re-stashed after another run (possibly a different window /
+  // settings): refresh the summary, then reconcile to live tabs.
+  useEffect(
+    () => transport.onReviewUpdated(() => void loadMeta().then(reconcile)),
+    [transport, loadMeta, reconcile],
+  );
 
-  // Pull path (belt-and-suspenders): re-fetch when the page regains focus, in
-  // case a broadcast was missed (e.g. the page was discarded/suspended).
+  // Re-focusing the page reconciles to live state (also covers a missed event).
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void refresh();
+      if (document.visibilityState === 'visible') void reconcile();
     };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
@@ -95,21 +121,21 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
     };
-  }, [refresh]);
+  }, [reconcile]);
 
-  // Live sync: tabs closed/updated outside the review.
+  // Live sync: any tab/group change in the window triggers a debounced
+  // reconcile (a single move fires several events in a burst).
   useEffect(() => {
-    const offRemoved = transport.onTabRemoved((id) =>
-      dispatch({ type: 'removeTabs', ids: [id] }),
-    );
-    const offUpdated = transport.onTabUpdated((id, title, url) =>
-      dispatch({ type: 'updateTab', id, title, url }),
-    );
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const off = transport.onTabsChanged(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => void reconcile(), 120);
+    });
     return () => {
-      offRemoved();
-      offUpdated();
+      clearTimeout(timer);
+      off();
     };
-  }, [transport]);
+  }, [transport, reconcile]);
 
   // Auto-dismiss toasts.
   useEffect(() => {

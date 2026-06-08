@@ -45,7 +45,7 @@ export async function runCleanup(): Promise<void> {
     .map((id) => byId.get(id))
     .filter((t): t is TabInfo => t != null);
 
-  await applyPlan(plan, chromeDriver);
+  const targetWindowId = await applyPlan(plan, chromeDriver);
 
   // Record after applying so the just-closed tabs are in chrome.sessions and
   // undo can restore them with history (see undo.ts).
@@ -53,6 +53,7 @@ export async function runCleanup(): Promise<void> {
 
   await stashReview({
     reviewTabs: plan.reviewTabs,
+    targetWindowId,
     closedCount: plan.closeTabIds.length,
     emptyWindowIds: plan.emptyWindowIds,
     stayingPinnedTabIds: plan.stayingPinnedTabIds,

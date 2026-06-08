@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { ReviewState } from '@/shared/messages';
+import { DEFAULT_SETTINGS } from '@/shared/settings';
 import type { TabInfo } from '@/shared/types';
 import { ReviewView } from '@/view/ReviewView';
 import type { ReviewTransport } from '@/view/transport';
@@ -15,15 +16,20 @@ function makeTransport(tabs: TabInfo[]) {
   // Mutable so a test can swap in a fresh stash and fire onReviewUpdated.
   const review: ReviewState = {
     reviewTabs: tabs,
+    targetWindowId: 1,
     closedCount: 2,
     emptyWindowIds: [],
     stayingPinnedTabIds: [],
     confirmBeforeCommit: false,
     generatedAt: 0,
   };
+  let liveTabs = tabs; // what queryTabs returns; the review mirrors this.
   const reviewUpdatedCbs: Array<() => void> = [];
+  const tabsChangedCbs: Array<() => void> = [];
   const transport: ReviewTransport = {
     getReview: async () => review,
+    getSettings: async () => DEFAULT_SETTINGS,
+    queryTabs: async () => liveTabs,
     jumpTo: async (id) => {
       calls.jumpTo.push(id);
     },
@@ -36,8 +42,13 @@ function makeTransport(tabs: TabInfo[]) {
       return 1;
     },
     closeEmptyWindows: async () => 0,
-    onTabRemoved: () => () => {},
-    onTabUpdated: () => () => {},
+    onTabsChanged: (cb) => {
+      tabsChangedCbs.push(cb);
+      return () => {
+        const i = tabsChangedCbs.indexOf(cb);
+        if (i >= 0) tabsChangedCbs.splice(i, 1);
+      };
+    },
     onReviewUpdated: (cb) => {
       reviewUpdatedCbs.push(cb);
       return () => {
@@ -46,12 +57,18 @@ function makeTransport(tabs: TabInfo[]) {
       };
     },
   };
-  // Test hook: mutate the stash, then notify the view as the worker would.
+  // Test hook: change the window's live tabs, then fire a tab-change event.
+  function setLiveTabs(next: TabInfo[]) {
+    liveTabs = next;
+    for (const cb of tabsChangedCbs) cb();
+  }
+  // Test hook: a fresh run re-stashes and notifies open pages.
   function restash(next: TabInfo[]) {
     review.reviewTabs = next;
+    liveTabs = next;
     for (const cb of reviewUpdatedCbs) cb();
   }
-  return { transport, calls, restash };
+  return { transport, calls, setLiveTabs, restash };
 }
 
 function press(key: string, opts: KeyboardEventInit = {}) {
@@ -121,6 +138,57 @@ describe('ReviewView', () => {
     // The previously-stale list now shows the tabs opened after the snapshot.
     expect(await screen.findByText('Beta')).toBeTruthy();
     expect(screen.getByText('Gamma')).toBeTruthy();
+  });
+
+  it('shows tabs opened after the snapshot once a tab-change fires (live)', async () => {
+    const { transport, setLiveTabs } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+    ]);
+    render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    // A new tab opens in the window after the cleanup ran.
+    setLiveTabs([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+    ]);
+
+    expect(await screen.findByText('Beta')).toBeTruthy();
+  });
+
+  it('drops a row when the tab is closed outside the review (live)', async () => {
+    const { transport, setLiveTabs } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+    ]);
+    render(<ReviewView transport={transport} />);
+    await screen.findByText('Beta');
+
+    setLiveTabs([tab({ id: 1, url: 'https://a.com', title: 'Alpha' })]);
+
+    await waitFor(() => expect(screen.queryByText('Beta')).toBeNull());
+    expect(screen.getByText('Alpha')).toBeTruthy();
+  });
+
+  it('preserves marks across a live reconcile for tabs still present', async () => {
+    const { transport, setLiveTabs } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+    ]);
+    render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    press('x'); // mark id 1
+    await screen.findByText('Close 1');
+
+    // A third tab opens; the existing mark on id 1 must survive the reconcile.
+    setLiveTabs([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+      tab({ id: 3, url: 'https://c.com', title: 'Gamma' }),
+    ]);
+    await screen.findByText('Gamma');
+    expect(screen.getByText('Close 1')).toBeTruthy(); // still one marked
   });
 
   it('jumps to a tab on Enter without a modifier', async () => {

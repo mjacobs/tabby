@@ -3,6 +3,24 @@ import type { TabInfo } from '@/shared/types';
 /** Chrome's sentinel for "no group". */
 export const TAB_GROUP_ID_NONE = -1;
 
+/** Map a chrome.tabs.Tab onto Tabby's TabInfo. Pure (no chrome.* calls). */
+export function tabInfoFromChromeTab(tab: chrome.tabs.Tab): TabInfo {
+  return {
+    id: tab.id ?? -1,
+    windowId: tab.windowId,
+    index: tab.index,
+    // url requires the "tabs" permission; pendingUrl covers not-yet-committed loads.
+    url: tab.url || tab.pendingUrl || '',
+    title: tab.title ?? '',
+    pinned: tab.pinned,
+    audible: tab.audible ?? false,
+    active: tab.active,
+    groupId: tab.groupId,
+    lastAccessed: tab.lastAccessed,
+    favIconUrl: tab.favIconUrl,
+  };
+}
+
 /** True when the tab belongs to a real tab group. */
 export function isGrouped(tab: TabInfo): boolean {
   return tab.groupId != null && tab.groupId !== TAB_GROUP_ID_NONE;

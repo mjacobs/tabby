@@ -146,6 +146,15 @@ footer {
   font-size: 0.8rem;
 }
 
+.radio-group:has(.import-btn) {
+  flex-direction: row;
+  gap: 0.5rem;
+}
+
+.import-btn {
+  display: inline-block;
+}
+
 code {
   font-family: ui-monospace, monospace;
   background: var(--border);

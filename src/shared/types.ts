@@ -54,4 +54,10 @@ export interface Settings {
   preserveGroups: boolean;
   consolidateTarget: ConsolidateTarget;
   confirmBeforeCommit: boolean;
+  /**
+   * Emit structured canonical tab-state snapshots at operation boundaries (to
+   * console.debug + a session ring buffer readable via the `dumpState` message).
+   * Off by default; a debugging/testing aid, not user-facing behavior.
+   */
+  debugLogging: boolean;
 }

@@ -5,6 +5,7 @@ import { buildCleanupPlan } from '@/core/buildCleanupPlan';
 import { applyPlan, chromeDriver } from '@/background/executor';
 import { snapshotWindows } from '@/background/snapshot';
 import { stashReview } from '@/background/reviewStore';
+import { logState } from '@/background/stateLog';
 import { recordClosed } from '@/background/undo';
 import { loadSettings } from '@/shared/settings';
 import type { TabInfo } from '@/shared/types';
@@ -33,6 +34,7 @@ async function openReview(): Promise<void> {
 export async function runCleanup(): Promise<void> {
   const settings = await loadSettings();
   const windows = await snapshotWindows(reviewUrl());
+  await logState('orchestrator:before', { windows, settings });
   const plan = buildCleanupPlan({ windows, settings });
 
   // Record the auto-dedup/purge closes for undo before we apply them.
@@ -53,6 +55,8 @@ export async function runCleanup(): Promise<void> {
     confirmBeforeCommit: settings.confirmBeforeCommit,
     generatedAt: Date.now(),
   });
+
+  await logState('orchestrator:after', { settings });
 
   await openReview();
 }

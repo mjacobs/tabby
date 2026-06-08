@@ -1,7 +1,13 @@
 import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 
-import { DEFAULT_SETTINGS, loadSettings, saveSettings } from '@/shared/settings';
+import {
+  DEFAULT_SETTINGS,
+  coerceSettings,
+  loadSettings,
+  saveSettings,
+  settingsToJson,
+} from '@/shared/settings';
 import type {
   BlankTabPolicy,
   ConsolidateTarget,
@@ -13,12 +19,44 @@ import '@/options/options.css';
 function Options() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [saved, setSaved] = useState(false);
+  const [importMsg, setImportMsg] = useState('');
 
   useEffect(() => {
     loadSettings().then(setSettings);
   }, []);
 
   if (!settings) return <main class="opt">Loading…</main>;
+
+  function exportSettings() {
+    const blob = new Blob([settingsToJson(settings!)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'tabby-settings.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importFile(file: File) {
+    setImportMsg('');
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch {
+      setImportMsg('Import failed: not valid JSON');
+      return;
+    }
+    const { settings: next, warnings } = coerceSettings(parsed);
+    setSettings(next);
+    await saveSettings(next);
+    setImportMsg(
+      warnings.length
+        ? `Imported with ${warnings.length} warning(s): ${warnings.join('; ')}`
+        : 'Imported ✓',
+    );
+  }
 
   // Persist on every change; flash a "Saved" indicator.
   function update(patch: Partial<Settings>) {
@@ -150,6 +188,47 @@ function Options() {
           checked={settings.confirmBeforeCommit}
           onChange={(v) => update({ confirmBeforeCommit: v })}
         />
+      </Section>
+
+      <Section
+        title="Developer"
+        desc="Diagnostics for debugging and automated testing."
+      >
+        <Check
+          label="Log canonical tab state at each operation (debug)"
+          checked={settings.debugLogging}
+          onChange={(v) => update({ debugLogging: v })}
+        />
+        <p class="note">
+          Emits structured before/after snapshots to the console and a buffer
+          readable via the <code>dumpState</code> message. Off by default.
+        </p>
+      </Section>
+
+      <Section
+        title="Backup & restore"
+        desc="Export your settings to a JSON file, or import one."
+      >
+        <div class="radio-group">
+          <button class="reset" onClick={exportSettings}>
+            Export settings…
+          </button>
+          <label class="reset import-btn">
+            Import settings…
+            <input
+              type="file"
+              accept="application/json,.json"
+              hidden
+              onChange={(e) => {
+                const input = e.currentTarget as HTMLInputElement;
+                const file = input.files?.[0];
+                if (file) void importFile(file);
+                input.value = '';
+              }}
+            />
+          </label>
+        </div>
+        {importMsg && <p class="note">{importMsg}</p>}
       </Section>
 
       <footer>

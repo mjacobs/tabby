@@ -2,7 +2,10 @@
 
 import { tabInfoFromChromeTab } from '@/background/snapshot';
 import { getReview } from '@/background/reviewStore';
+import { runCleanup } from '@/background/orchestrator';
+import { dumpState, logState } from '@/background/stateLog';
 import { recordClosed, undoLast } from '@/background/undo';
+import { coerceSettings, loadSettings, saveSettings } from '@/shared/settings';
 import type { TabInfo } from '@/shared/types';
 import type { ViewRequest, ViewResponse } from '@/shared/messages';
 
@@ -36,6 +39,7 @@ async function commitClose(
   } catch {
     // Best-effort; some ids may already be closed.
   }
+  await logState('commitClose');
   return { closed: infos.length };
 }
 
@@ -54,6 +58,18 @@ async function closeEmptyWindows(
   return { closed };
 }
 
+async function exportSettings(): Promise<ViewResponse['exportSettings']> {
+  return { settings: await loadSettings() };
+}
+
+async function importSettings(
+  input: unknown,
+): Promise<ViewResponse['importSettings']> {
+  const { settings, warnings } = coerceSettings(input);
+  await saveSettings(settings);
+  return { ok: true, warnings };
+}
+
 async function dispatch(msg: ViewRequest): Promise<unknown> {
   switch (msg.type) {
     case 'getReview':
@@ -62,10 +78,22 @@ async function dispatch(msg: ViewRequest): Promise<unknown> {
       return jumpTo(msg.tabId);
     case 'commitClose':
       return commitClose(msg.tabIds);
-    case 'undo':
-      return { restored: await undoLast() };
+    case 'undo': {
+      const restored = await undoLast();
+      await logState('undo');
+      return { restored };
+    }
     case 'closeEmptyWindows':
       return closeEmptyWindows(msg.windowIds);
+    case 'runCleanup':
+      await runCleanup();
+      return { ok: true };
+    case 'exportSettings':
+      return exportSettings();
+    case 'importSettings':
+      return importSettings(msg.settings);
+    case 'dumpState':
+      return dumpState();
   }
 }
 

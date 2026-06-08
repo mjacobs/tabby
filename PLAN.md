@@ -130,14 +130,41 @@ Goal: configurable, friendly, ready to rely on.
 
 ---
 
-## Phase 5 — Side panel surface (later, optional)
+## Phase 5 — Side panel surface (parked)
 
 Goal: cash in the host-agnostic design.
 
-- [ ] `view/shells/sidepanel.tsx` mounting the **same** `ReviewView`.
-- [ ] Request `sidePanel` optional permission on opt-in.
-- [ ] Surface selector in options (page | side panel).
-- [ ] **Verify:** identical review behavior in both surfaces, no view-logic fork.
+> **Status (2026-06-07):** Attempted and parked on branch
+> `phase-5-sidepanel`. Two iterations landed there; the second
+> (`2934369`) switched `sidePanel` to a required permission and declared
+> `side_panel.default_path` in the manifest. Despite that, the side
+> panel rendered as visibly empty in real Chrome on macOS — the panel
+> opens (right-click toolbar lists Tabby), the cleanup pipeline runs,
+> but the panel's `<div id="app">` never gets populated. Suspects worth
+> trying next, in rough order of likelihood:
+>
+> 1. **Stale extension state in Chrome's profile** — the user's first
+>    reload of the optional-permission build crashed the browser; the
+>    profile may be carrying corrupted side-panel registration that a
+>    full remove + re-load-unpacked would clear. Try this first.
+> 2. **Vite/crxjs asset path inside the side-panel frame** — built
+>    `sidepanel.html` references `/assets/sidepanel-*.js` as absolute
+>    paths. Confirm via DevTools attached to the panel (right-click
+>    inside panel → Inspect) whether those requests 404 or load fine.
+> 3. **`crossorigin` attribute on the bundled script tag** — review
+>    page uses the same pattern and works, but worth ruling out by
+>    stripping the attribute or switching the build to inline.
+>
+> The branch leaves these tasks unchecked:
+
+- [ ] `src/sidepanel/sidepanel.{html,tsx}` mounting the **same**
+      `ReviewView`. (Shipped on the branch; verify it actually renders.)
+- [ ] Side-panel registration that survives a cold service-worker
+      start. (Manifest `side_panel.default_path` should do it; verify.)
+- [ ] Surface selector in options (page | side panel). (Shipped on the
+      branch.)
+- [ ] **Verify:** identical review behavior in both surfaces, no
+      view-logic fork.
 
 **Exit:** user can switch surfaces per situation.
 

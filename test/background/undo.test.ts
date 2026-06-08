@@ -76,6 +76,9 @@ function fakeChrome(opts: {
   const store: Record<string, unknown> = {};
   const restored: string[] = [];
   const created: Array<{ url?: string; pinned?: boolean }> = [];
+  const activated: number[] = []; // tab ids re-activated via tabs.update
+  // The active tab when undo runs (the review page the user is on).
+  const reviewTab = { id: 999, windowId: 1 } as chrome.tabs.Tab;
   const fake: Record<string, unknown> = {
     storage: {
       session: {
@@ -90,7 +93,13 @@ function fakeChrome(opts: {
         created.push(props);
         return {} as chrome.tabs.Tab;
       },
+      query: async () => [reviewTab],
+      update: async (id: number) => {
+        activated.push(id);
+        return reviewTab;
+      },
     },
+    windows: { update: async () => ({}) as chrome.windows.Window },
   };
   if (opts.hasSessions !== false) {
     fake.sessions = {
@@ -102,7 +111,7 @@ function fakeChrome(opts: {
       },
     };
   }
-  return { fake, store, restored, created };
+  return { fake, store, restored, created, activated };
 }
 
 describe('recordClosed + undoLast', () => {
@@ -163,6 +172,26 @@ describe('recordClosed + undoLast', () => {
 
     expect(n).toBe(1);
     expect(created).toEqual([{ url: 'https://a.com', pinned: false, active: false }]);
+  });
+
+  it('returns focus to the originating tab so restores do not steal it', async () => {
+    const { fake, activated } = fakeChrome({
+      recentlyClosed: [
+        session('https://a.com', 'sess-a', FRESH),
+        session('https://b.com', 'sess-b', FRESH),
+      ],
+    });
+    vi.stubGlobal('chrome', fake);
+    vi.setSystemTime(NOW);
+
+    await recordClosed([
+      tab({ url: 'https://a.com' }),
+      tab({ url: 'https://b.com' }),
+    ]);
+    await undoLast();
+
+    // The review tab (id 999) is re-activated after the batch restores.
+    expect(activated).toEqual([999]);
   });
 
   it('restores batches LIFO and returns 0 when empty', async () => {

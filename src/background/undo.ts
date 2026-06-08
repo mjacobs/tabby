@@ -106,6 +106,15 @@ export async function undoLast(): Promise<number> {
 
   await chrome.storage.session.set({ [UNDO_KEY]: buffer });
 
+  // Remember where the user was (the review page they triggered undo from).
+  // chrome.sessions.restore activates each tab it reopens, so restoring a batch
+  // would otherwise scatter focus onto an arbitrary restored tab; we put focus
+  // back afterward so the user keeps the holistic view of the change.
+  const [activeBefore] = await chrome.tabs.query({
+    active: true,
+    lastFocusedWindow: true,
+  });
+
   let restored = 0;
   for (const tab of batch) {
     try {
@@ -126,5 +135,18 @@ export async function undoLast(): Promise<number> {
       }
     }
   }
+
+  // Return focus to where the user was before the restores stole it.
+  if (activeBefore?.id != null) {
+    try {
+      await chrome.tabs.update(activeBefore.id, { active: true });
+      if (activeBefore.windowId != null) {
+        await chrome.windows.update(activeBefore.windowId, { focused: true });
+      }
+    } catch {
+      // The tab/window vanished — nothing to refocus.
+    }
+  }
+
   return restored;
 }

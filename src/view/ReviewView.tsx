@@ -1,4 +1,10 @@
-import { useEffect, useReducer, useRef, useState } from 'preact/hooks';
+import {
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+} from 'preact/hooks';
 
 import type { TabInfo } from '@/shared/types';
 import { isGrouped } from '@/shared/tabs';
@@ -48,9 +54,11 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
   const confirmRef = useRef(false);
   confirmRef.current = meta?.confirmBeforeCommit ?? false;
 
-  // Load the stashed cleanup result.
-  useEffect(() => {
-    transport.getReview().then((review) => {
+  // Pull the stashed cleanup result and replace the view's state with it.
+  // Used for the initial mount and to reconcile to the latest stash whenever
+  // the worker re-runs or the page regains focus (kata#zpsb).
+  const refresh = useCallback(() => {
+    return transport.getReview().then((review) => {
       if (review) {
         dispatch({ type: 'load', tabs: review.reviewTabs });
         setMeta({
@@ -63,6 +71,31 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
       setLoaded(true);
     });
   }, [transport]);
+
+  // Initial load.
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  // Push path: the worker re-stashed after another run — reconcile in place.
+  useEffect(() => transport.onReviewUpdated(() => void refresh()), [
+    transport,
+    refresh,
+  ]);
+
+  // Pull path (belt-and-suspenders): re-fetch when the page regains focus, in
+  // case a broadcast was missed (e.g. the page was discarded/suspended).
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [refresh]);
 
   // Live sync: tabs closed/updated outside the review.
   useEffect(() => {

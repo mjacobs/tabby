@@ -2,7 +2,11 @@
 // interface, never on chrome.* directly, so the same component can mount in a
 // page (chromeTransport) or a test (fake transport) or a future side panel.
 
-import { sendRequest, type ReviewState } from '@/shared/messages';
+import {
+  sendRequest,
+  type ReviewState,
+  type WorkerBroadcast,
+} from '@/shared/messages';
 
 export interface ReviewTransport {
   getReview(): Promise<ReviewState | null>;
@@ -18,6 +22,8 @@ export interface ReviewTransport {
   onTabUpdated(
     cb: (tabId: number, title?: string, url?: string) => void,
   ): () => void;
+  /** Subscribe to worker "review re-stashed" broadcasts; returns an unsubscribe fn. */
+  onReviewUpdated(cb: () => void): () => void;
 }
 
 /** The real transport, backed by runtime messaging + chrome.tabs events. */
@@ -45,5 +51,12 @@ export const chromeTransport: ReviewTransport = {
       cb(tabId, info.title, info.url);
     chrome.tabs.onUpdated.addListener(handler);
     return () => chrome.tabs.onUpdated.removeListener(handler);
+  },
+  onReviewUpdated(cb) {
+    const handler = (msg: WorkerBroadcast) => {
+      if (msg?.type === 'reviewUpdated') cb();
+    };
+    chrome.runtime.onMessage.addListener(handler);
+    return () => chrome.runtime.onMessage.removeListener(handler);
   },
 };

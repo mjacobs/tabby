@@ -94,3 +94,15 @@ export function sendRequest<K extends ViewRequest['type']>(
 ): Promise<ViewResponse[K]> {
   return chrome.runtime.sendMessage(req) as Promise<ViewResponse[K]>;
 }
+
+/**
+ * One-way broadcasts from the worker to any open review page (no response).
+ * 'reviewUpdated' tells an already-mounted review page to re-fetch the stash,
+ * so a fresh cleanup reaches a page that loaded before the run (kata#zpsb).
+ */
+export type WorkerBroadcast = { type: 'reviewUpdated' };
+
+/** Fire-and-forget broadcast; ignores the "no receiver" error when no page is open. */
+export function broadcast(msg: WorkerBroadcast): void {
+  void chrome.runtime.sendMessage(msg).catch(() => {});
+}

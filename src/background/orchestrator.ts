@@ -6,6 +6,7 @@ import { applyPlan, chromeDriver } from '@/background/executor';
 import { snapshotWindows } from '@/background/snapshot';
 import { stashReview } from '@/background/reviewStore';
 import { logState } from '@/background/stateLog';
+import { broadcast } from '@/shared/messages';
 import { recordClosed } from '@/background/undo';
 import { loadSettings } from '@/shared/settings';
 import type { TabInfo } from '@/shared/types';
@@ -57,6 +58,11 @@ export async function runCleanup(): Promise<void> {
   });
 
   await logState('orchestrator:after', { settings });
+
+  // Push the fresh stash to any review page that mounted before this run, so
+  // re-triggering in a window with the review already open updates it in place
+  // instead of showing the stale snapshot (kata#zpsb).
+  broadcast({ type: 'reviewUpdated' });
 
   await openReview();
 }

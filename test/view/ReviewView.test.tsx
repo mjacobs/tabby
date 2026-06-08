@@ -12,6 +12,7 @@ afterEach(cleanup);
 
 function makeTransport(tabs: TabInfo[]) {
   const calls = { commitClose: [] as number[][], jumpTo: [] as number[], undo: 0 };
+  // Mutable so a test can swap in a fresh stash and fire onReviewUpdated.
   const review: ReviewState = {
     reviewTabs: tabs,
     closedCount: 2,
@@ -20,6 +21,7 @@ function makeTransport(tabs: TabInfo[]) {
     confirmBeforeCommit: false,
     generatedAt: 0,
   };
+  const reviewUpdatedCbs: Array<() => void> = [];
   const transport: ReviewTransport = {
     getReview: async () => review,
     jumpTo: async (id) => {
@@ -36,8 +38,20 @@ function makeTransport(tabs: TabInfo[]) {
     closeEmptyWindows: async () => 0,
     onTabRemoved: () => () => {},
     onTabUpdated: () => () => {},
+    onReviewUpdated: (cb) => {
+      reviewUpdatedCbs.push(cb);
+      return () => {
+        const i = reviewUpdatedCbs.indexOf(cb);
+        if (i >= 0) reviewUpdatedCbs.splice(i, 1);
+      };
+    },
   };
-  return { transport, calls };
+  // Test hook: mutate the stash, then notify the view as the worker would.
+  function restash(next: TabInfo[]) {
+    review.reviewTabs = next;
+    for (const cb of reviewUpdatedCbs) cb();
+  }
+  return { transport, calls, restash };
 }
 
 function press(key: string, opts: KeyboardEventInit = {}) {
@@ -88,6 +102,25 @@ describe('ReviewView', () => {
 
     press('Enter', { ctrlKey: true });
     await waitFor(() => expect(calls.commitClose).toEqual([[2]]));
+  });
+
+  it('reconciles to a fresh stash when the worker broadcasts reviewUpdated', async () => {
+    const { transport, restash } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+    ]);
+    render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    // A new run re-stashes with extra tabs and notifies the open page.
+    restash([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+      tab({ id: 3, url: 'https://c.com', title: 'Gamma' }),
+    ]);
+
+    // The previously-stale list now shows the tabs opened after the snapshot.
+    expect(await screen.findByText('Beta')).toBeTruthy();
+    expect(screen.getByText('Gamma')).toBeTruthy();
   });
 
   it('jumps to a tab on Enter without a modifier', async () => {

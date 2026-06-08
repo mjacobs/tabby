@@ -24,7 +24,7 @@ async function jumpTo(tabId: number): Promise<ViewResponse['jumpTo']> {
 async function commitClose(
   tabIds: number[],
 ): Promise<ViewResponse['commitClose']> {
-  // Capture tab info for undo before removing.
+  // Capture tab info for undo before removing (the tabs still exist here).
   const infos: TabInfo[] = [];
   for (const id of tabIds) {
     try {
@@ -33,12 +33,14 @@ async function commitClose(
       // Already gone — nothing to record.
     }
   }
-  await recordClosed(infos);
   try {
     await chrome.tabs.remove(tabIds);
   } catch {
     // Best-effort; some ids may already be closed.
   }
+  // Record after removal so the closed tabs are in chrome.sessions and undo can
+  // restore them with history (see undo.ts).
+  await recordClosed(infos);
   await logState('commitClose');
   return { closed: infos.length };
 }

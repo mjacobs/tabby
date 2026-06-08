@@ -38,15 +38,18 @@ export async function runCleanup(): Promise<void> {
   await logState('orchestrator:before', { windows, settings });
   const plan = buildCleanupPlan({ windows, settings });
 
-  // Record the auto-dedup/purge closes for undo before we apply them.
+  // Gather the auto-dedup/purge closes so we can record them for undo.
   const byId = new Map<number, TabInfo>();
   for (const w of windows) for (const t of w.tabs) byId.set(t.id, t);
   const closing = plan.closeTabIds
     .map((id) => byId.get(id))
     .filter((t): t is TabInfo => t != null);
-  if (closing.length) await recordClosed(closing);
 
   await applyPlan(plan, chromeDriver);
+
+  // Record after applying so the just-closed tabs are in chrome.sessions and
+  // undo can restore them with history (see undo.ts).
+  if (closing.length) await recordClosed(closing);
 
   await stashReview({
     reviewTabs: plan.reviewTabs,

@@ -17,7 +17,6 @@ export const DEFAULT_SETTINGS: Settings = {
   preserveGroups: true,
   consolidateTarget: 'focused-window',
   confirmBeforeCommit: false,
-  preferredSurface: 'page',
 };
 
 /** Load settings from chrome.storage.sync, merged over defaults. */

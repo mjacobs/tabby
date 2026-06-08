@@ -26,9 +26,6 @@ export type KeepPolicy = 'most-recent' | 'oldest' | 'leftmost';
 /** Where consolidated tabs land. */
 export type ConsolidateTarget = 'focused-window' | 'new-window';
 
-/** Surface used to present the review list. */
-export type ReviewSurface = 'page' | 'sidepanel';
-
 /**
  * What to do with blank/empty tabs (about:blank, new-tab pages, empty URL).
  * Note: these mirror the internal dedup modes of the same name, so the value
@@ -57,6 +54,4 @@ export interface Settings {
   preserveGroups: boolean;
   consolidateTarget: ConsolidateTarget;
   confirmBeforeCommit: boolean;
-  /** Where the review opens. 'sidepanel' requires the optional permission. */
-  preferredSurface: ReviewSurface;
 }

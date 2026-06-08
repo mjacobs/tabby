@@ -4,14 +4,14 @@
 import { registerMessageHandlers } from '@/background/messageHandlers';
 import { runCleanup } from '@/background/orchestrator';
 
-chrome.action.onClicked.addListener((tab) => {
-  void runCleanup({ windowId: tab.windowId });
+chrome.action.onClicked.addListener(() => {
+  void runCleanup();
 });
 
-chrome.commands.onCommand.addListener(async (command) => {
-  if (command !== 'run-cleanup') return;
-  const win = await chrome.windows.getLastFocused();
-  void runCleanup({ windowId: win.id });
+chrome.commands.onCommand.addListener((command) => {
+  if (command === 'run-cleanup') {
+    void runCleanup();
+  }
 });
 
 registerMessageHandlers();

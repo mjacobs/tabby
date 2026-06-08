@@ -130,26 +130,14 @@ Goal: configurable, friendly, ready to rely on.
 
 ---
 
-## Phase 5 — Side panel surface
+## Phase 5 — Side panel surface (later, optional)
 
 Goal: cash in the host-agnostic design.
 
-- [x] `src/sidepanel/sidepanel.tsx` mounts the **same** `ReviewView` with the
-      same `chromeTransport` — no view-logic fork. CSS adds a narrow-frame
-      variant under `body.surface-sidepanel` (hides the URL column, wraps the
-      header) without touching the component.
-- [x] Optional `sidePanel` permission requested on opt-in from the options
-      page (`chrome.permissions.request` inside the user-gesture click);
-      saved only on grant, with a denial hint on cancel.
-- [x] Surface selector in options ("Review surface" section: page | side
-      panel), backed by `Settings.preferredSurface` (default `page`).
-- [x] Orchestrator routes the trigger: when the user prefers the side panel
-      *and* the permission is granted, it calls `chrome.sidePanel.setOptions`
-      + `chrome.sidePanel.open({ windowId })`. Falls back to the page tab if
-      the API isn't available or the call fails. Trigger handlers thread the
-      originating `windowId` through so the open call has the gesture context
-      it needs.
-- [ ] **Verify manually:** identical review behavior in both surfaces.
+- [ ] `view/shells/sidepanel.tsx` mounting the **same** `ReviewView`.
+- [ ] Request `sidePanel` optional permission on opt-in.
+- [ ] Surface selector in options (page | side panel).
+- [ ] **Verify:** identical review behavior in both surfaces, no view-logic fork.
 
 **Exit:** user can switch surfaces per situation.
 

@@ -9,13 +9,12 @@ for the phased execution plan.
 
 ## Status
 
-**v1.0 feature-complete (Phases 0–4) + side panel (Phase 5).** One click
-(or `Ctrl/Cmd+Shift+K`) consolidates every window's tabs into the focused one,
-removes duplicates and blank-tab clutter, sorts by URL, and opens a
-keyboard-driven review list to prune what's left — with undo. A full settings
-page tunes the behavior, and the review can be served either as a full page
-(default) or in Chrome's side panel — same component, no view-logic fork. 69
-tests, all green. See `PLAN.md` for the phase ledger.
+**v1.0 feature-complete (Phases 0–4).** One click (or `Ctrl/Cmd+Shift+K`)
+consolidates every window's tabs into the focused one, removes duplicates and
+blank-tab clutter, sorts by URL, and opens a keyboard-driven review list to
+prune what's left — with undo. A full settings page tunes the behavior. 68
+tests, all green. Side-panel surface (Phase 5) is the remaining optional
+enhancement; see `PLAN.md`.
 
 ### Keyboard (review list)
 

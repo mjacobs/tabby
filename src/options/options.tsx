@@ -6,7 +6,6 @@ import type {
   BlankTabPolicy,
   ConsolidateTarget,
   KeepPolicy,
-  ReviewSurface,
   Settings,
 } from '@/shared/types';
 import '@/options/options.css';
@@ -153,16 +152,6 @@ function Options() {
         />
       </Section>
 
-      <Section
-        title="Review surface"
-        desc="Where the review list appears after a cleanup run."
-      >
-        <SurfacePicker
-          value={settings.preferredSurface}
-          onChange={(v) => update({ preferredSurface: v })}
-        />
-      </Section>
-
       <footer>
         <button class="reset" onClick={() => update(DEFAULT_SETTINGS)}>
           Reset to defaults
@@ -203,60 +192,6 @@ function Check(props: {
       />
       <span>{props.label}</span>
     </label>
-  );
-}
-
-/**
- * Surface picker. Selecting "side panel" requests the optional `sidePanel`
- * permission (must be inside the user-gesture handler). On grant we save the
- * setting; on deny we leave the saved value alone and show a hint.
- */
-function SurfacePicker(props: {
-  value: ReviewSurface;
-  onChange: (v: ReviewSurface) => void;
-}) {
-  const [denied, setDenied] = useState(false);
-
-  async function choose(v: ReviewSurface) {
-    setDenied(false);
-    if (v === 'sidepanel') {
-      const granted = await chrome.permissions.request({
-        permissions: ['sidePanel'],
-      });
-      if (!granted) {
-        setDenied(true);
-        return;
-      }
-    }
-    props.onChange(v);
-  }
-
-  return (
-    <div class="radio-group">
-      <label class="check">
-        <input
-          type="radio"
-          name="preferredSurface"
-          checked={props.value === 'page'}
-          onChange={() => void choose('page')}
-        />
-        <span>Full extension page (default)</span>
-      </label>
-      <label class="check">
-        <input
-          type="radio"
-          name="preferredSurface"
-          checked={props.value === 'sidepanel'}
-          onChange={() => void choose('sidepanel')}
-        />
-        <span>Side panel</span>
-      </label>
-      {denied && (
-        <p class="note">
-          Side-panel permission denied. Re-click to try again, or stay on page.
-        </p>
-      )}
-    </div>
   );
 }
 

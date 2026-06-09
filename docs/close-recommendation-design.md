@@ -50,6 +50,25 @@ tabs this feature targets:
   `Inbox (155)` Gmail repeated ~6×, `pvez`/Proxmox many times, NPM proxy and
   Miniflux unread repeated across separate dumps.
 
+### Lineage: the `tabz` v0 (`~/dev/projects/tabz`)
+
+Tabby is the second attempt. The first — `tabz` (WXT + React + Zustand) — is by
+the user's own account "terrible," yet they **used it consistently for months**.
+That alone is strong validation that this CUJ is real and underserved. No code is
+being carried over, but v0 prefigured nearly every thread of this design, which
+is why they all feel coherent:
+
+- A **cleanup rules engine** — user-authored `CleanupRule`s (conditions →
+  close/pin/mute/group). This is the direct ancestor of the close-recommendation
+  classifier. **Key evolution:** v0 made the *user* hand-author rules; the new
+  direction is **automatic recommendation** so the user doesn't have to configure
+  anything. Manual rules can remain an escape hatch, not the primary path.
+- **Sessions** (save/restore) → the de-noised-stash idea (`dxph`).
+- A **virtualized tab tree** → the tree/outliner view (`3ce9`).
+- **Obsidian markdown export** → a precedent for the "records"/export angle.
+
+Doesn't change any decision here; recorded so the design's origins are legible.
+
 ### Implication: the classifier is reusable; possible adjacent features
 
 The "interesting vs. noise" classifier is the reusable core. Beyond live-tab

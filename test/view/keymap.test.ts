@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { keymap } from '@/view/keymap';
+import { createKeymap, keymap } from '@/view/keymap';
 
 describe('keymap (navigation mode)', () => {
   const nav = (key: string, mod = false) =>
@@ -52,5 +52,66 @@ describe('keymap (filtering mode)', () => {
     expect(filt('Escape')).toEqual({ type: 'setFiltering', on: false });
     expect(filt('a')).toBeNull();
     expect(filt('j')).toBeNull();
+  });
+});
+
+describe('keymap gg two-key sequence', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('g then g jumps to top', () => {
+    const handle = createKeymap(
+      (fn, ms) => setTimeout(fn, ms),
+      (id) => clearTimeout(id),
+    );
+    // First g: immediate jump to top
+    expect(handle({ key: 'g' }, false)).toEqual({ type: 'moveTo', to: 'top' });
+    // Second g within window: also jump to top (gg sequence)
+    expect(handle({ key: 'g' }, false)).toEqual({ type: 'moveTo', to: 'top' });
+  });
+
+  it('g then j does NOT jump back to top (j moves cursor down normally)', () => {
+    const handle = createKeymap(
+      (fn, ms) => setTimeout(fn, ms),
+      (id) => clearTimeout(id),
+    );
+    // First g: jump to top
+    expect(handle({ key: 'g' }, false)).toEqual({ type: 'moveTo', to: 'top' });
+    // j after g cancels the pending sequence and is handled as a normal move
+    expect(handle({ key: 'j' }, false)).toEqual({ type: 'move', delta: 1 });
+  });
+
+  it('G jumps to bottom', () => {
+    const handle = createKeymap(
+      (fn, ms) => setTimeout(fn, ms),
+      (id) => clearTimeout(id),
+    );
+    expect(handle({ key: 'G' }, false)).toEqual({ type: 'moveTo', to: 'bottom' });
+  });
+
+  it('timeout expiry cancels the pending sequence (no second jump)', () => {
+    const handle = createKeymap(
+      (fn, ms) => setTimeout(fn, ms),
+      (id) => clearTimeout(id),
+    );
+    // First g: jump to top, pending sequence armed
+    expect(handle({ key: 'g' }, false)).toEqual({ type: 'moveTo', to: 'top' });
+    // Advance past the 400 ms timeout — pending state is cleared
+    vi.advanceTimersByTime(401);
+    // After timeout, 'j' is handled normally (no top-jump side effect)
+    expect(handle({ key: 'j' }, false)).toEqual({ type: 'move', delta: 1 });
+  });
+
+  it('lone g still jumps to top immediately (alias not regressed)', () => {
+    const handle = createKeymap(
+      (fn, ms) => setTimeout(fn, ms),
+      (id) => clearTimeout(id),
+    );
+    expect(handle({ key: 'g' }, false)).toEqual({ type: 'moveTo', to: 'top' });
   });
 });

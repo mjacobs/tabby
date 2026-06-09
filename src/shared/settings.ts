@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   consolidateTarget: 'focused-window',
   confirmBeforeCommit: false,
   debugLogging: false,
+  traceNavigation: false,
 };
 
 /** Load settings from chrome.storage.sync, merged over defaults. */
@@ -97,6 +98,7 @@ const TOP_LEVEL_KEYS = new Set<keyof Settings>([
   'consolidateTarget',
   'confirmBeforeCommit',
   'debugLogging',
+  'traceNavigation',
 ]);
 
 const NORMALIZE_KEYS = new Set<keyof Settings['normalize']>([
@@ -226,6 +228,12 @@ export function coerceSettings(input: unknown): {
       input.debugLogging,
       d.debugLogging,
       'debugLogging',
+      warnings,
+    ),
+    traceNavigation: coerceBool(
+      input.traceNavigation,
+      d.traceNavigation,
+      'traceNavigation',
       warnings,
     ),
   };

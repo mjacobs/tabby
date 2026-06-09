@@ -64,6 +64,30 @@ export interface StateDump {
   buffer: CanonicalSnapshot[];
 }
 
+// --- Records-log types (e6f0) — pure data, kept here so messages.ts stays
+// view-safe (the background imports these; no chrome types leak in). The records
+// log is a persistent, capped trail of what Tabby recommended/closed and why,
+// plus an opt-in navigation trace whose 'nav' entries seed the stranded-auth
+// pattern set (see docs/close-recommendation-design.md, signal 1). ------------
+
+/**
+ * One entry in the persistent records log. Discriminated by `kind`; every entry
+ * carries `at` (ms epoch). Pure data — safe for the view to render.
+ */
+export type RecordEntry = { at: number } & (
+  | { kind: 'recommendation'; tabId: number; url: string; reasons: string[] }
+  | { kind: 'close'; tabIds: number[]; urls: string[] }
+  | { kind: 'undo'; restored: number }
+  | {
+      kind: 'nav';
+      tabId: number;
+      fromUrl: string;
+      toUrl: string;
+      transitionType: string;
+      qualifiers: string[];
+    }
+);
+
 /** Requests the view sends to the worker. */
 export type ViewRequest =
   | { type: 'getReview' }
@@ -79,7 +103,10 @@ export type ViewRequest =
   | { type: 'dumpState' }
   // Close-recommendation flags (9kb5) — advisory only; the worker computes
   // them because bookmark lookup needs chrome.bookmarks.
-  | { type: 'getRecommendations'; tabs: TabInfo[] };
+  | { type: 'getRecommendations'; tabs: TabInfo[] }
+  // Records log (e6f0) — read/clear the persistent recommend/close/nav trail.
+  | { type: 'getRecords' }
+  | { type: 'clearRecords' };
 
 /** Response shape per request type. */
 export interface ViewResponse {
@@ -93,6 +120,8 @@ export interface ViewResponse {
   importSettings: { ok: boolean; warnings: string[] };
   dumpState: StateDump;
   getRecommendations: { recommendations: Recommendation[] };
+  getRecords: { records: RecordEntry[] };
+  clearRecords: { ok: boolean };
 }
 
 /** Send a typed request to the worker and get its typed response. */

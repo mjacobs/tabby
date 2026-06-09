@@ -30,7 +30,14 @@ export default defineManifest({
     type: 'module',
   },
   options_page: 'src/options/options.html',
-  permissions: ['tabs', 'tabGroups', 'storage', 'sessions', 'bookmarks'],
+  permissions: [
+    'tabs',
+    'tabGroups',
+    'storage',
+    'sessions',
+    'bookmarks',
+    'webNavigation',
+  ],
   optional_permissions: ['sidePanel'],
   web_accessible_resources: [
     {

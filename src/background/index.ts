@@ -3,6 +3,9 @@
 
 import { registerMessageHandlers } from '@/background/messageHandlers';
 import { runCleanup } from '@/background/orchestrator';
+import { setTraceEnabled } from '@/background/trace';
+import { loadSettings } from '@/shared/settings';
+import type { Settings } from '@/shared/types';
 
 chrome.action.onClicked.addListener(() => {
   void runCleanup();
@@ -15,3 +18,18 @@ chrome.commands.onCommand.addListener((command) => {
 });
 
 registerMessageHandlers();
+
+// Navigation trace mode (e6f0): attach/detach the webNavigation listener to
+// match Settings.traceNavigation. Read once at worker start, then react to
+// settings changes (settings live in chrome.storage.sync).
+async function initTrace(): Promise<void> {
+  const settings = await loadSettings();
+  setTraceEnabled(settings.traceNavigation);
+}
+void initTrace();
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'sync' || !changes.settings) return;
+  const next = changes.settings.newValue as Partial<Settings> | undefined;
+  setTraceEnabled(next?.traceNavigation ?? false);
+});

@@ -60,4 +60,10 @@ export interface Settings {
    * Off by default; a debugging/testing aid, not user-facing behavior.
    */
   debugLogging: boolean;
+  /**
+   * Record main-frame navigation events ('nav' entries) to the persistent
+   * records log. Off by default; opt-in trace mode whose log is harvested to
+   * build the stranded-auth URL pattern set (signal 1, kata e6f0).
+   */
+  traceNavigation: boolean;
 }

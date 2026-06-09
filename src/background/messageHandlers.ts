@@ -6,6 +6,14 @@ import { getReview } from '@/background/reviewStore';
 import { recommendClosures } from '@/core/recommend';
 import { runCleanup } from '@/background/orchestrator';
 import { dumpState, logState } from '@/background/stateLog';
+import {
+  appendRecords,
+  buildCloseRecord,
+  buildRecommendationRecords,
+  buildUndoRecord,
+  clearRecords,
+  getRecords,
+} from '@/background/records';
 import { recordClosed, undoLast } from '@/background/undo';
 import { coerceSettings, loadSettings, saveSettings } from '@/shared/settings';
 import type { TabInfo } from '@/shared/types';
@@ -43,6 +51,7 @@ async function commitClose(
   // Record after removal so the closed tabs are in chrome.sessions and undo can
   // restore them with history (see undo.ts).
   await recordClosed(infos);
+  await appendRecords([buildCloseRecord(infos, Date.now())]);
   await logState('commitClose');
   return { closed: infos.length };
 }
@@ -79,12 +88,12 @@ async function getRecommendations(
 ): Promise<ViewResponse['getRecommendations']> {
   const settings = await loadSettings();
   const bookmarkedUrls = await getBookmarkedUrlSet(settings.normalize);
-  return {
-    recommendations: recommendClosures(tabs, {
-      bookmarkedUrls,
-      normalize: settings.normalize,
-    }),
-  };
+  const recommendations = recommendClosures(tabs, {
+    bookmarkedUrls,
+    normalize: settings.normalize,
+  });
+  await appendRecords(buildRecommendationRecords(recommendations, tabs, Date.now()));
+  return { recommendations };
 }
 
 async function dispatch(msg: ViewRequest): Promise<unknown> {
@@ -97,6 +106,7 @@ async function dispatch(msg: ViewRequest): Promise<unknown> {
       return commitClose(msg.tabIds);
     case 'undo': {
       const restored = await undoLast();
+      await appendRecords([buildUndoRecord(restored, Date.now())]);
       await logState('undo');
       return { restored };
     }
@@ -113,6 +123,11 @@ async function dispatch(msg: ViewRequest): Promise<unknown> {
       return dumpState();
     case 'getRecommendations':
       return getRecommendations(msg.tabs);
+    case 'getRecords':
+      return { records: await getRecords() };
+    case 'clearRecords':
+      await clearRecords();
+      return { ok: true };
   }
 }
 

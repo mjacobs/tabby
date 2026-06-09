@@ -17,6 +17,7 @@ import {
   reduce,
   visibleTabs,
   type Action,
+  type ReviewUiState,
 } from '@/view/state';
 import type { ReviewTransport } from '@/view/transport';
 
@@ -34,6 +35,7 @@ const HELP: [string, string][] = [
   ['V then move, x', 'mark a range'],
   ['a / A', 'mark all / clear marks'],
   ['/', 'filter'],
+  ['z', 'collapse / expand group'],
   ['enter', 'jump to tab'],
   ['⌘/ctrl + enter', 'close marked tabs'],
   ['u', 'undo last close'],
@@ -210,6 +212,7 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
 
   const visible = visibleTabs(state);
   const markedCount = state.marked.size;
+  const items = renderItems(state, visible);
 
   async function closeEmpty() {
     if (!meta) return;
@@ -259,7 +262,7 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
         </button>
       </header>
 
-      {visible.length === 0 ? (
+      {items.length === 0 ? (
         <p class="empty">
           {state.tabs.length === 0
             ? 'Nothing to review — no tabs left to remove. 🎉'
@@ -267,22 +270,35 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
         </p>
       ) : (
         <ol class="list">
-          {visible.map((tab, i) => (
-            <>
-              <GroupDivider tab={tab} prev={visible[i - 1]} />
+          {items.map((item) =>
+            item.kind === 'header' ? (
+              <GroupHeader
+                key={`group-${item.groupId}`}
+                groupId={item.groupId}
+                tabs={state.tabs}
+                marked={state.marked}
+                collapsed={state.collapsed.has(item.groupId)}
+                onToggle={() =>
+                  dispatch({
+                    type: 'toggleCollapse',
+                    groupId: item.groupId,
+                  })
+                }
+              />
+            ) : (
               <Row
-                key={tab.id}
-                tab={tab}
-                isCursor={i === state.cursor}
-                isMarked={state.marked.has(tab.id)}
-                onClick={() => void transport.jumpTo(tab.id)}
+                key={item.tab.id}
+                tab={item.tab}
+                isCursor={item.index === state.cursor}
+                isMarked={state.marked.has(item.tab.id)}
+                onClick={() => void transport.jumpTo(item.tab.id)}
                 onToggle={() => {
-                  dispatch({ type: 'move', delta: i - state.cursor });
+                  dispatch({ type: 'move', delta: item.index - state.cursor });
                   dispatch({ type: 'toggleMark' });
                 }}
               />
-            </>
-          ))}
+            ),
+          )}
         </ol>
       )}
 
@@ -292,11 +308,77 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
   );
 }
 
-/** Renders a divider when entering a new tab group. */
-function GroupDivider({ tab, prev }: { tab: TabInfo; prev?: TabInfo }) {
-  if (!isGrouped(tab)) return null;
-  if (prev && prev.groupId === tab.groupId) return null;
-  return <li class="group-divider">group {tab.groupId}</li>;
+/**
+ * One entry in the rendered list: either a group header or a tab row. Headers
+ * are emitted from the canonical tab order so a collapsed group (which has no
+ * visible members) still shows its header in place. `index` on a row is its
+ * position in `visibleTabs`, which is what the cursor indexes. (kata#yrez)
+ */
+type RenderItem =
+  | { kind: 'header'; groupId: number }
+  | { kind: 'row'; tab: TabInfo; index: number };
+
+function matchesFilter(tab: TabInfo, filter: string): boolean {
+  const q = filter.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    tab.title.toLowerCase().includes(q) || tab.url.toLowerCase().includes(q)
+  );
+}
+
+function renderItems(state: ReviewUiState, visible: TabInfo[]): RenderItem[] {
+  const items: RenderItem[] = [];
+  const headered = new Set<number>();
+  // Row indices come straight from `visible`, whose order matches the canonical
+  // tab order we walk here (same filter + collapse predicate).
+  const indexOf = new Map<number, number>();
+  visible.forEach((t, i) => indexOf.set(t.id, i));
+
+  for (const tab of state.tabs) {
+    // A collapsed group's members are hidden but still count toward whether the
+    // group matches the filter (so its header stays put).
+    if (isGrouped(tab) && state.collapsed.has(tab.groupId)) {
+      if (matchesFilter(tab, state.filter) && !headered.has(tab.groupId)) {
+        items.push({ kind: 'header', groupId: tab.groupId });
+        headered.add(tab.groupId);
+      }
+      continue;
+    }
+    if (!matchesFilter(tab, state.filter)) continue;
+    if (isGrouped(tab) && !headered.has(tab.groupId)) {
+      items.push({ kind: 'header', groupId: tab.groupId });
+      headered.add(tab.groupId);
+    }
+    items.push({ kind: 'row', tab, index: indexOf.get(tab.id) ?? 0 });
+  }
+  return items;
+}
+
+/** Collapsible header for a tab group: marker + name + tab / to-close counts. */
+function GroupHeader({
+  groupId,
+  tabs,
+  marked,
+  collapsed,
+  onToggle,
+}: {
+  groupId: number;
+  tabs: TabInfo[];
+  marked: Set<number>;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  // Counts are over ALL members (collapse is display-only — totals never change).
+  const members = tabs.filter((t) => isGrouped(t) && t.groupId === groupId);
+  const toClose = members.filter((t) => marked.has(t.id)).length;
+  return (
+    <li class="group-divider" onClick={onToggle}>
+      <span class="group-marker">{collapsed ? '▸' : '▾'}</span> group {groupId}{' '}
+      <span class="group-counts">
+        {members.length} tabs · {toClose} to close
+      </span>
+    </li>
+  );
 }
 
 function Help() {

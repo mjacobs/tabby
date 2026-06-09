@@ -39,8 +39,12 @@ describe('keymap (navigation mode)', () => {
     expect(nav('Escape')).toEqual({ type: 'escape' });
   });
 
+  it('maps z to collapse-toggle on the current group', () => {
+    expect(nav('z')).toEqual({ type: 'toggleCollapse' });
+  });
+
   it('ignores unmapped keys', () => {
-    expect(nav('z')).toBeNull();
+    expect(nav('q')).toBeNull();
   });
 });
 

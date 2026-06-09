@@ -107,6 +107,8 @@ export function createKeymap(
         return { type: 'focusFilter' };
       case 'u':
         return { type: 'undo' };
+      case 'z':
+        return { type: 'toggleCollapse' };
       case '?':
         return { type: 'toggleHelp' };
       case 'Escape':

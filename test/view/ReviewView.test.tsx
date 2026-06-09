@@ -191,6 +191,76 @@ describe('ReviewView', () => {
     expect(screen.getByText('Close 1')).toBeTruthy(); // still one marked
   });
 
+  it('collapses a group: hides members, keeps the header and its counts', async () => {
+    const { transport } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha', groupId: 7 }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta', groupId: 7 }),
+      tab({ id: 3, url: 'https://c.com', title: 'Gamma' }),
+    ]);
+    render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    press('x'); // mark Alpha (cursor on the first row)
+    await screen.findByText('Close 1');
+
+    press('z'); // collapse group 7 (cursor's group)
+
+    // Member rows vanish; the ungrouped row stays.
+    await waitFor(() => expect(screen.queryByText('Alpha')).toBeNull());
+    expect(screen.queryByText('Beta')).toBeNull();
+    expect(screen.getByText('Gamma')).toBeTruthy();
+
+    // The header survives and its totals are unchanged (2 tabs / 1 to close).
+    expect(screen.getByText(/2 tabs · 1 to close/)).toBeTruthy();
+    // The mark on a hidden row is preserved (commit button still shows it).
+    expect(screen.getByText('Close 1')).toBeTruthy();
+
+    // Expanding (via the header — the cursor is no longer on a member) brings
+    // the members and the surviving mark back.
+    screen.getByText(/group 7/).click();
+    expect(await screen.findByText('Alpha')).toBeTruthy();
+    expect(screen.getByText('Beta')).toBeTruthy();
+    expect(screen.getByText('Close 1')).toBeTruthy();
+  });
+
+  it('clicking a group header toggles collapse', async () => {
+    const { transport } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha', groupId: 7 }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta', groupId: 7 }),
+    ]);
+    render(<ReviewView transport={transport} />);
+    const header = await screen.findByText(/group 7/);
+
+    header.click();
+    await waitFor(() => expect(screen.queryByText('Alpha')).toBeNull());
+
+    header.click();
+    expect(await screen.findByText('Alpha')).toBeTruthy();
+  });
+
+  it('j/k skip the members of a collapsed group', async () => {
+    const { transport, calls } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha', groupId: 7 }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta', groupId: 7 }),
+      tab({ id: 3, url: 'https://c.com', title: 'Gamma' }),
+    ]);
+    render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    press('z'); // collapse group 7 — only Gamma stays visible
+    await waitFor(() => expect(screen.queryByText('Alpha')).toBeNull());
+
+    // Cursor starts at the only visible row (Gamma); Enter jumps to it, never a
+    // hidden member.
+    press('Enter');
+    await waitFor(() => expect(calls.jumpTo).toEqual([3]));
+
+    // j/k cannot land on a hidden member: still Gamma.
+    press('j');
+    press('Enter');
+    await waitFor(() => expect(calls.jumpTo).toEqual([3, 3]));
+  });
+
   it('jumps to a tab on Enter without a modifier', async () => {
     const { transport, calls } = makeTransport([
       tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),

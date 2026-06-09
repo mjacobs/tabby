@@ -3,6 +3,7 @@
 // import this without pulling in worker-only code.
 
 import type { Settings, TabInfo } from '@/shared/types';
+import type { Recommendation } from '@/core/recommend';
 
 /** Snapshot of a completed cleanup, stashed for the review view to render. */
 export interface ReviewState {
@@ -75,7 +76,10 @@ export type ViewRequest =
   | { type: 'exportSettings' }
   | { type: 'importSettings'; settings: unknown }
   // Debug/observability (vpn4) — read canonical state without DevTools.
-  | { type: 'dumpState' };
+  | { type: 'dumpState' }
+  // Close-recommendation flags (9kb5) — advisory only; the worker computes
+  // them because bookmark lookup needs chrome.bookmarks.
+  | { type: 'getRecommendations'; tabs: TabInfo[] };
 
 /** Response shape per request type. */
 export interface ViewResponse {
@@ -88,6 +92,7 @@ export interface ViewResponse {
   exportSettings: { settings: Settings };
   importSettings: { ok: boolean; warnings: string[] };
   dumpState: StateDump;
+  getRecommendations: { recommendations: Recommendation[] };
 }
 
 /** Send a typed request to the worker and get its typed response. */

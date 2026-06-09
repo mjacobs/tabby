@@ -1,7 +1,9 @@
 // Worker-side handlers for ViewRequests. Registered once from index.ts.
 
 import { tabInfoFromChromeTab } from '@/shared/tabs';
+import { getBookmarkedUrlSet } from '@/background/bookmarks';
 import { getReview } from '@/background/reviewStore';
+import { recommendClosures } from '@/core/recommend';
 import { runCleanup } from '@/background/orchestrator';
 import { dumpState, logState } from '@/background/stateLog';
 import { recordClosed, undoLast } from '@/background/undo';
@@ -72,6 +74,19 @@ async function importSettings(
   return { ok: true, warnings };
 }
 
+async function getRecommendations(
+  tabs: TabInfo[],
+): Promise<ViewResponse['getRecommendations']> {
+  const settings = await loadSettings();
+  const bookmarkedUrls = await getBookmarkedUrlSet(settings.normalize);
+  return {
+    recommendations: recommendClosures(tabs, {
+      bookmarkedUrls,
+      normalize: settings.normalize,
+    }),
+  };
+}
+
 async function dispatch(msg: ViewRequest): Promise<unknown> {
   switch (msg.type) {
     case 'getReview':
@@ -96,6 +111,8 @@ async function dispatch(msg: ViewRequest): Promise<unknown> {
       return importSettings(msg.settings);
     case 'dumpState':
       return dumpState();
+    case 'getRecommendations':
+      return getRecommendations(msg.tabs);
   }
 }
 

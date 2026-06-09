@@ -130,41 +130,44 @@ Goal: configurable, friendly, ready to rely on.
 
 ---
 
-## Phase 5 — Side panel surface (parked)
+## Phase 5 — Side panel surface (re-landed, unverified)
 
 Goal: cash in the host-agnostic design.
 
-> **Status (2026-06-07):** Attempted and parked on branch
-> `phase-5-sidepanel`. Two iterations landed there; the second
-> (`2934369`) switched `sidePanel` to a required permission and declared
-> `side_panel.default_path` in the manifest. Despite that, the side
-> panel rendered as visibly empty in real Chrome on macOS — the panel
-> opens (right-click toolbar lists Tabby), the cleanup pipeline runs,
-> but the panel's `<div id="app">` never gets populated. Suspects worth
-> trying next, in rough order of likelihood:
+> **Status (2026-06-09):** The first attempt (2026-06-07) rendered a visibly
+> empty panel in real Chrome on macOS and was reverted (`32f4f86`); the code is
+> now re-integrated onto current main on branch `sidepanel-reland`, awaiting an
+> interactive browser session (kata `b08q`). Suspects for the empty panel, in
+> rough order of likelihood:
 >
-> 1. **Stale extension state in Chrome's profile** — the user's first
->    reload of the optional-permission build crashed the browser; the
->    profile may be carrying corrupted side-panel registration that a
->    full remove + re-load-unpacked would clear. Try this first.
+> 1. **Stale extension state in Chrome's profile** — the first reload of the
+>    optional-permission build crashed the browser; a full remove +
+>    re-load-unpacked may clear corrupted side-panel registration. Try first.
 > 2. **Vite/crxjs asset path inside the side-panel frame** — built
->    `sidepanel.html` references `/assets/sidepanel-*.js` as absolute
->    paths. Confirm via DevTools attached to the panel (right-click
->    inside panel → Inspect) whether those requests 404 or load fine.
-> 3. **`crossorigin` attribute on the bundled script tag** — review
->    page uses the same pattern and works, but worth ruling out by
->    stripping the attribute or switching the build to inline.
->
-> The branch leaves these tasks unchecked:
+>    `sidepanel.html` references `/assets/sidepanel-*.js` as absolute paths;
+>    confirm via DevTools attached to the panel whether they 404.
+> 3. **`crossorigin` attribute on the bundled script tag** — review page uses
+>    the same pattern and works; rule out by stripping it or inlining.
 
-- [ ] `src/sidepanel/sidepanel.{html,tsx}` mounting the **same**
-      `ReviewView`. (Shipped on the branch; verify it actually renders.)
-- [ ] Side-panel registration that survives a cold service-worker
-      start. (Manifest `side_panel.default_path` should do it; verify.)
-- [ ] Surface selector in options (page | side panel). (Shipped on the
-      branch.)
-- [ ] **Verify:** identical review behavior in both surfaces, no
-      view-logic fork.
+What the re-landed code does:
+
+- [x] `src/sidepanel/sidepanel.tsx` mounts the **same** `ReviewView` with the
+      same `chromeTransport` — no view-logic fork. CSS adds a narrow-frame
+      variant under `body.surface-sidepanel` (hides the URL column, wraps the
+      header) without touching the component.
+- [x] Optional `sidePanel` permission requested on opt-in from the options
+      page (`chrome.permissions.request` inside the user-gesture click);
+      saved only on grant, with a denial hint on cancel.
+- [x] Surface selector in options ("Review surface" section: page | side
+      panel), backed by `Settings.preferredSurface` (default `page`).
+- [x] Orchestrator routes the trigger: when the user prefers the side panel
+      *and* the permission is granted, it calls `chrome.sidePanel.setOptions`
+      + `chrome.sidePanel.open({ windowId })`. Falls back to the page tab if
+      the API isn't available or the call fails. Trigger handlers thread the
+      originating `windowId` through so the open call has the gesture context
+      it needs.
+- [ ] **Verify manually:** diagnose the empty-panel bug, then confirm
+      identical review behavior in both surfaces.
 
 **Exit:** user can switch surfaces per situation.
 

@@ -22,7 +22,7 @@ export function tabInfoFromChromeTab(tab: chrome.tabs.Tab): TabInfo {
 }
 
 /** True when the tab belongs to a real tab group. */
-export function isGrouped(tab: TabInfo): boolean {
+export function isGrouped(tab: TabInfo): tab is TabInfo & { groupId: number } {
   return tab.groupId != null && tab.groupId !== TAB_GROUP_ID_NONE;
 }
 

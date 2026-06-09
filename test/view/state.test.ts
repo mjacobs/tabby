@@ -82,6 +82,51 @@ describe('review state', () => {
     expect(s.marked.size).toBe(0);
   });
 
+  it('collapsing a group hides its members but keeps marks and totals', () => {
+    let s = initialState([
+      tab({ id: 1, url: 'a', title: 'a', groupId: 7 }),
+      tab({ id: 2, url: 'b', title: 'b', groupId: 7 }),
+      tab({ id: 3, url: 'c', title: 'c' }),
+    ]);
+    // mark a member of the group, then collapse from a member row.
+    s = reduce(s, { type: 'toggleMark' }); // mark id 1 (cursor at 0)
+    s = reduce(s, { type: 'toggleCollapse' }); // current row's group = 7
+    expect(visibleTabs(s).map((t) => t.id)).toEqual([3]); // members hidden
+    expect([...s.marked]).toEqual([1]); // mark on hidden row survives
+    expect(s.tabs.length).toBe(3); // totals unchanged
+    // expand restores the rows; mark still present.
+    s = reduce(s, { type: 'toggleCollapse', groupId: 7 });
+    expect(visibleTabs(s).map((t) => t.id)).toEqual([1, 2, 3]);
+    expect([...s.marked]).toEqual([1]);
+  });
+
+  it('j/k skip a collapsed group and land on the next visible row', () => {
+    let s = initialState([
+      tab({ id: 1, url: 'a', title: 'a', groupId: 7 }),
+      tab({ id: 2, url: 'b', title: 'b', groupId: 7 }),
+      tab({ id: 3, url: 'c', title: 'c' }),
+    ]);
+    s = reduce(s, { type: 'toggleCollapse', groupId: 7 }); // collapse first
+    // Only the ungrouped tab is visible; the cursor cannot land on members.
+    expect(visibleTabs(s).map((t) => t.id)).toEqual([3]);
+    s = reduce(s, { type: 'moveTo', to: 'top' });
+    expect(currentTab(s)?.id).toBe(3);
+    s = reduce(s, { type: 'move', delta: -1 }); // clamped, still on 3
+    expect(currentTab(s)?.id).toBe(3);
+  });
+
+  it('toggleCollapse clamps the cursor onto a still-visible row', () => {
+    let s = initialState([
+      tab({ id: 1, url: 'a', title: 'a' }),
+      tab({ id: 2, url: 'b', title: 'b', groupId: 7 }),
+      tab({ id: 3, url: 'c', title: 'c', groupId: 7 }),
+    ]);
+    s = reduce(s, { type: 'moveTo', to: 'bottom' }); // cursor on id 3
+    s = reduce(s, { type: 'toggleCollapse' }); // collapse group 7
+    // id 3 is gone from the visible list; cursor must clamp to the last visible.
+    expect(currentTab(s)?.id).toBe(1);
+  });
+
   it('escape clears visual anchor and help', () => {
     let s = load('a', 'b');
     s = reduce(s, { type: 'startVisual' });

@@ -3,6 +3,7 @@
 // whole interaction model is unit-testable without rendering anything.
 
 import type { TabInfo } from '@/shared/types';
+import { isGrouped, TAB_GROUP_ID_NONE } from '@/shared/tabs';
 
 export interface ReviewUiState {
   tabs: TabInfo[];
@@ -17,6 +18,12 @@ export interface ReviewUiState {
   /** Visual-range anchor (a visible index), or null when not range-selecting. */
   visualAnchor: number | null;
   showHelp: boolean;
+  /**
+   * Group ids that are currently COLLAPSED (members hidden from the list).
+   * Default empty = all expanded. Display-only and session-only: never
+   * persisted, never affects header totals, marks, or commit. (kata#yrez)
+   */
+  collapsed: Set<number>;
 }
 
 export type Action =
@@ -33,6 +40,7 @@ export type Action =
   | { type: 'removeTabs'; ids: number[] }
   | { type: 'updateTab'; id: number; title?: string; url?: string }
   | { type: 'toggleHelp' }
+  | { type: 'toggleCollapse'; groupId?: number }
   | { type: 'escape' };
 
 export function initialState(tabs: TabInfo[]): ReviewUiState {
@@ -44,17 +52,24 @@ export function initialState(tabs: TabInfo[]): ReviewUiState {
     filtering: false,
     visualAnchor: null,
     showHelp: false,
+    collapsed: new Set(),
   };
 }
 
-/** Tabs matching the current filter, in order. */
+/**
+ * Tabs matching the current filter AND not hidden inside a collapsed group,
+ * in order. The cursor indexes into this list, so j/k naturally skip the
+ * members of a collapsed group. (kata#yrez)
+ */
 export function visibleTabs(state: ReviewUiState): TabInfo[] {
   const q = state.filter.trim().toLowerCase();
-  if (!q) return state.tabs;
-  return state.tabs.filter(
-    (t) =>
-      t.title.toLowerCase().includes(q) || t.url.toLowerCase().includes(q),
-  );
+  return state.tabs.filter((t) => {
+    if (isGrouped(t) && state.collapsed.has(t.groupId)) return false;
+    if (!q) return true;
+    return (
+      t.title.toLowerCase().includes(q) || t.url.toLowerCase().includes(q)
+    );
+  });
 }
 
 /** The tab under the cursor, or undefined when the visible list is empty. */
@@ -78,7 +93,14 @@ export function reduce(state: ReviewUiState, action: Action): ReviewUiState {
       // visual-range, and help. (kata#xtwp)
       const present = new Set(action.tabs.map((t) => t.id));
       const marked = new Set([...state.marked].filter((id) => present.has(id)));
-      const next = { ...state, tabs: action.tabs, marked };
+      // Drop collapse state for groups that no longer exist in the window.
+      const liveGroups = new Set(
+        action.tabs.filter(isGrouped).map((t) => t.groupId),
+      );
+      const collapsed = new Set(
+        [...state.collapsed].filter((g) => liveGroups.has(g)),
+      );
+      const next = { ...state, tabs: action.tabs, marked, collapsed };
       const count = visibleTabs(next).length;
       const visualAnchor =
         state.visualAnchor == null ? null : clampCursor(state.visualAnchor, count);
@@ -165,6 +187,21 @@ export function reduce(state: ReviewUiState, action: Action): ReviewUiState {
 
     case 'toggleHelp':
       return { ...state, showHelp: !state.showHelp };
+
+    case 'toggleCollapse': {
+      // Default target is the current row's group ('z' key); the header click
+      // passes its own groupId explicitly.
+      const groupId = action.groupId ?? currentTab(state)?.groupId;
+      if (groupId == null || groupId === TAB_GROUP_ID_NONE) return state;
+      const collapsed = new Set(state.collapsed);
+      if (collapsed.has(groupId)) collapsed.delete(groupId);
+      else collapsed.add(groupId);
+      // Keep the cursor on a still-visible row. After collapsing the group the
+      // cursor sat in, it would otherwise point past the (now shorter) list.
+      const next = { ...state, collapsed };
+      const count = visibleTabs(next).length;
+      return { ...next, cursor: clampCursor(state.cursor, count) };
+    }
 
     case 'escape':
       return { ...state, visualAnchor: null, showHelp: false };

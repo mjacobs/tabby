@@ -99,14 +99,32 @@ body {
   cursor: default;
 }
 
-/* Group divider ----------------------------------------------------------- */
+/* Group header (collapsible) --------------------------------------------- */
 .group-divider {
   list-style: none;
   color: var(--muted);
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 0.6rem 0 0.2rem 2rem;
+  padding: 0.6rem 0 0.2rem 1rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.group-divider:hover {
+  color: var(--fg);
+}
+
+.group-marker {
+  display: inline-block;
+  width: 1rem;
+  text-align: center;
+}
+
+.group-counts {
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.8;
 }
 
 /* Rows -------------------------------------------------------------------- */

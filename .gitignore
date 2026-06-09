@@ -8,3 +8,6 @@ coverage/
 # crxjs build cache
 .vite/
 .kata.local.toml
+
+# Extension signing key (local only; pins stable extension ID)
+tabby-extension-key.pem

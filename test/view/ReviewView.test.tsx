@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { ReviewState } from '@/shared/messages';
+import type { RecommendReason } from '@/core/recommend';
 import { DEFAULT_SETTINGS } from '@/shared/settings';
 import type { TabInfo } from '@/shared/types';
 import { ReviewView } from '@/view/ReviewView';
@@ -11,7 +12,10 @@ import { tab } from '../helpers';
 
 afterEach(cleanup);
 
-function makeTransport(tabs: TabInfo[]) {
+function makeTransport(
+  tabs: TabInfo[],
+  recommendations: Array<{ tabId: number; reasons: RecommendReason[] }> = [],
+) {
   const calls = { commitClose: [] as number[][], jumpTo: [] as number[], undo: 0 };
   // Mutable so a test can swap in a fresh stash and fire onReviewUpdated.
   const review: ReviewState = {
@@ -42,6 +46,8 @@ function makeTransport(tabs: TabInfo[]) {
       return 1;
     },
     closeEmptyWindows: async () => 0,
+    getRecommendations: async (forTabs) =>
+      recommendations.filter((r) => forTabs.some((t) => t.id === r.tabId)),
     onTabsChanged: (cb) => {
       tabsChangedCbs.push(cb);
       return () => {
@@ -259,6 +265,27 @@ describe('ReviewView', () => {
     press('j');
     press('Enter');
     await waitFor(() => expect(calls.jumpTo).toEqual([3, 3]));
+  });
+
+  it('shows advisory recommendation badges with their reasons (kata 9kb5)', async () => {
+    const { transport } = makeTransport(
+      [
+        tab({ id: 1, url: 'https://a.com/saved', title: 'Saved page' }),
+        tab({ id: 2, url: 'https://bank.com/login', title: 'Bank login' }),
+        tab({ id: 3, url: 'https://c.com', title: 'Plain tab' }),
+      ],
+      [
+        { tabId: 1, reasons: ['bookmarked'] },
+        { tabId: 2, reasons: ['stranded-auth'] },
+      ],
+    );
+    render(<ReviewView transport={transport} />);
+    await screen.findByText('Saved page');
+
+    await screen.findByText('bookmarked');
+    await screen.findByText('stale login');
+    // The unflagged tab gets no suggest badge.
+    expect(screen.getAllByText(/bookmarked|stale login/)).toHaveLength(2);
   });
 
   it('jumps to a tab on Enter without a modifier', async () => {

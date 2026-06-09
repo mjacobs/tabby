@@ -207,6 +207,13 @@ body {
   border-color: var(--accent);
 }
 
+/* Advisory close-recommendation flags (kata 9kb5). */
+.badge.suggest {
+  color: var(--warn, #b58900);
+  border-color: var(--warn, #b58900);
+  cursor: help;
+}
+
 /* Toast + help ------------------------------------------------------------ */
 .toast {
   position: fixed;

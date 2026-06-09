@@ -1,13 +1,29 @@
 import type { TabInfo } from '@/shared/types';
 import { isGrouped } from '@/shared/tabs';
+import type { RecommendReason } from '@/core/recommend';
 
 interface RowProps {
   tab: TabInfo;
   isCursor: boolean;
   isMarked: boolean;
+  /** Advisory close-recommendation reasons (kata 9kb5); absent = no flag. */
+  recommendReasons?: RecommendReason[];
   onClick: () => void;
   onToggle: () => void;
 }
+
+/** Badge label + tooltip per recommendation reason. Advisory only. */
+const REASON_BADGES: Record<RecommendReason, { label: string; title: string }> =
+  {
+    bookmarked: {
+      label: 'bookmarked',
+      title: 'Already bookmarked — close to reclaim tab real estate?',
+    },
+    'stranded-auth': {
+      label: 'stale login',
+      title: 'Looks like a stranded login page — the session likely expired.',
+    },
+  };
 
 function hostOf(url: string): string {
   try {
@@ -18,7 +34,14 @@ function hostOf(url: string): string {
   }
 }
 
-export function Row({ tab, isCursor, isMarked, onClick, onToggle }: RowProps) {
+export function Row({
+  tab,
+  isCursor,
+  isMarked,
+  recommendReasons,
+  onClick,
+  onToggle,
+}: RowProps) {
   const cls = ['row', isCursor && 'cursor', isMarked && 'marked']
     .filter(Boolean)
     .join(' ');
@@ -52,6 +75,15 @@ export function Row({ tab, isCursor, isMarked, onClick, onToggle }: RowProps) {
         {tab.pinned && <span class="badge">pinned</span>}
         {tab.audible && <span class="badge">audio</span>}
         {isGrouped(tab) && <span class="badge group">group</span>}
+        {recommendReasons?.map((reason) => (
+          <span
+            key={reason}
+            class="badge suggest"
+            title={REASON_BADGES[reason].title}
+          >
+            {REASON_BADGES[reason].label}
+          </span>
+        ))}
       </span>
     </li>
   );

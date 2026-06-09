@@ -9,6 +9,7 @@ import {
 import type { Settings, TabInfo } from '@/shared/types';
 import { isGrouped } from '@/shared/tabs';
 import { sortTabs } from '@/core/sortTabs';
+import type { RecommendReason } from '@/core/recommend';
 import { keymap, type Intent } from '@/view/keymap';
 import { Row } from '@/view/Row';
 import {
@@ -49,6 +50,10 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  // Advisory close-recommendation reasons by tab id (kata 9kb5).
+  const [recs, setRecs] = useState<ReadonlyMap<number, RecommendReason[]>>(
+    new Map(),
+  );
 
   const filterRef = useRef<HTMLInputElement>(null);
   // Keyboard handler reads the latest state/flags without re-binding the listener.
@@ -138,6 +143,23 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
       off();
     };
   }, [transport, reconcile]);
+
+  // Refresh advisory flags whenever the displayed tab set changes. Stale
+  // responses are dropped so a slow round-trip can't overwrite a newer one.
+  useEffect(() => {
+    if (state.tabs.length === 0) {
+      setRecs(new Map());
+      return;
+    }
+    let cancelled = false;
+    void transport.getRecommendations(state.tabs).then((recommendations) => {
+      if (cancelled) return;
+      setRecs(new Map(recommendations.map((r) => [r.tabId, r.reasons])));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [transport, state.tabs]);
 
   // Auto-dismiss toasts.
   useEffect(() => {
@@ -291,6 +313,7 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
                 tab={item.tab}
                 isCursor={item.index === state.cursor}
                 isMarked={state.marked.has(item.tab.id)}
+                recommendReasons={recs.get(item.tab.id)}
                 onClick={() => void transport.jumpTo(item.tab.id)}
                 onToggle={() => {
                   dispatch({ type: 'move', delta: item.index - state.cursor });

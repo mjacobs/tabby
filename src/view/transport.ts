@@ -9,6 +9,7 @@ import {
 } from '@/shared/messages';
 import { tabInfoFromChromeTab } from '@/shared/tabs';
 import type { Settings, TabInfo } from '@/shared/types';
+import type { Recommendation } from '@/core/recommend';
 
 const REVIEW_PAGE = 'src/review/review.html';
 
@@ -21,6 +22,8 @@ export interface ReviewTransport {
   jumpTo(tabId: number): Promise<void>;
   /** Close the given tabs; returns how many were closed. */
   commitClose(tabIds: number[]): Promise<number>;
+  /** Advisory close-recommendation flags for the given tabs (kata 9kb5). */
+  getRecommendations(tabs: TabInfo[]): Promise<Recommendation[]>;
   /** Restore the last closed batch; returns how many reopened. */
   undo(): Promise<number>;
   closeEmptyWindows(windowIds: number[]): Promise<number>;
@@ -52,6 +55,10 @@ export const chromeTransport: ReviewTransport = {
   },
   async commitClose(tabIds) {
     return (await sendRequest({ type: 'commitClose', tabIds })).closed;
+  },
+  async getRecommendations(tabs) {
+    return (await sendRequest({ type: 'getRecommendations', tabs }))
+      .recommendations;
   },
   async undo() {
     return (await sendRequest({ type: 'undo' })).restored;

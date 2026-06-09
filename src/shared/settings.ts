@@ -22,6 +22,11 @@ export const DEFAULT_SETTINGS: Settings = {
   preserveGroups: true,
   consolidateTarget: 'focused-window',
   confirmBeforeCommit: false,
+  recommend: {
+    bookmarked: true,
+    strandedAuth: true,
+    excludedDomains: [],
+  },
   debugLogging: false,
   traceNavigation: false,
 };
@@ -97,8 +102,15 @@ const TOP_LEVEL_KEYS = new Set<keyof Settings>([
   'preserveGroups',
   'consolidateTarget',
   'confirmBeforeCommit',
+  'recommend',
   'debugLogging',
   'traceNavigation',
+]);
+
+const RECOMMEND_KEYS = new Set<keyof Settings['recommend']>([
+  'bookmarked',
+  'strandedAuth',
+  'excludedDomains',
 ]);
 
 const NORMALIZE_KEYS = new Set<keyof Settings['normalize']>([
@@ -177,8 +189,37 @@ export function coerceSettings(input: unknown): {
     ),
   };
 
+  let rIn: Record<string, unknown> = {};
+  if (isPlainObject(input.recommend)) {
+    rIn = input.recommend;
+  } else if (input.recommend !== undefined) {
+    warnings.push('recommend: expected object, kept defaults');
+  }
+
+  const recommend: Settings['recommend'] = {
+    bookmarked: coerceBool(
+      rIn.bookmarked,
+      d.recommend.bookmarked,
+      'recommend.bookmarked',
+      warnings,
+    ),
+    strandedAuth: coerceBool(
+      rIn.strandedAuth,
+      d.recommend.strandedAuth,
+      'recommend.strandedAuth',
+      warnings,
+    ),
+    excludedDomains: coerceStringArray(
+      rIn.excludedDomains,
+      d.recommend.excludedDomains,
+      'recommend.excludedDomains',
+      warnings,
+    ),
+  };
+
   const settings: Settings = {
     normalize,
+    recommend,
     keepPolicy: coerceEnum(
       input.keepPolicy,
       KEEP_POLICIES,
@@ -247,6 +288,13 @@ export function coerceSettings(input: unknown): {
     for (const k of Object.keys(input.normalize)) {
       if (!NORMALIZE_KEYS.has(k as keyof Settings['normalize'])) {
         warnings.push(`normalize.${k}: unknown setting, ignored`);
+      }
+    }
+  }
+  if (isPlainObject(input.recommend)) {
+    for (const k of Object.keys(input.recommend)) {
+      if (!RECOMMEND_KEYS.has(k as keyof Settings['recommend'])) {
+        warnings.push(`recommend.${k}: unknown setting, ignored`);
       }
     }
   }

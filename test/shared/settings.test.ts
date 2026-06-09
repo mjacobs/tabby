@@ -75,6 +75,28 @@ describe('coerceSettings', () => {
     );
   });
 
+  it('coerces the recommend block field by field (kata 2gga)', () => {
+    const { settings, warnings } = coerceSettings({
+      recommend: {
+        bookmarked: false,
+        strandedAuth: 'nope',
+        excludedDomains: ['chase.com'],
+        bogus: 1,
+      },
+    });
+    expect(settings.recommend.bookmarked).toBe(false);
+    expect(settings.recommend.strandedAuth).toBe(
+      DEFAULT_SETTINGS.recommend.strandedAuth,
+    );
+    expect(settings.recommend.excludedDomains).toEqual(['chase.com']);
+    expect(warnings).toEqual(
+      expect.arrayContaining([
+        'recommend.strandedAuth: expected boolean, kept default',
+        'recommend.bogus: unknown setting, ignored',
+      ]),
+    );
+  });
+
   it('returns defaults for non-object input', () => {
     for (const bad of [null, 42, 'x', [1, 2], undefined]) {
       const { settings, warnings } = coerceSettings(bad);

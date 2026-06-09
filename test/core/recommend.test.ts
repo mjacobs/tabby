@@ -91,6 +91,39 @@ describe('recommendClosures', () => {
     ]);
   });
 
+  it('per-signal toggles suppress only their own flag (kata 2gga)', () => {
+    const url = 'https://accounts.google.com/v3/signin/challenge/pwd';
+    const t = tab({ url });
+    const ctx = { bookmarkedUrls: bookmarked(url), normalize };
+    expect(
+      recommendClosures([t], {
+        ...ctx,
+        options: { bookmarked: false, strandedAuth: true, excludedDomains: [] },
+      }),
+    ).toEqual([{ tabId: t.id, reasons: ['stranded-auth'] }]);
+    expect(
+      recommendClosures([t], {
+        ...ctx,
+        options: { bookmarked: true, strandedAuth: false, excludedDomains: [] },
+      }),
+    ).toEqual([{ tabId: t.id, reasons: ['bookmarked'] }]);
+  });
+
+  it('excluded domains are never flagged, including subdomains (kata 2gga)', () => {
+    const t1 = tab({ url: 'https://login.brev.nvidia.com/signin' });
+    const t2 = tab({ url: 'https://www.chase.com/logout' });
+    const recs = recommendClosures([t1, t2], {
+      bookmarkedUrls: new Set(),
+      normalize,
+      options: {
+        bookmarked: true,
+        strandedAuth: true,
+        excludedDomains: ['nvidia.com'],
+      },
+    });
+    expect(recs).toEqual([{ tabId: t2.id, reasons: ['stranded-auth'] }]);
+  });
+
   it('returns nothing when no signal applies', () => {
     const recs = recommendClosures(
       [tab({ url: 'https://example.com/work' })],

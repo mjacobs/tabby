@@ -119,6 +119,26 @@ export interface RecommendContext {
   /** Normalized URLs of all bookmarks (same normalize options applied). */
   bookmarkedUrls: ReadonlySet<string>;
   normalize: NormalizeOptions;
+  /** Per-signal toggles + domain opt-out (kata 2gga). Absent = all signals on. */
+  options?: Settings['recommend'];
+}
+
+/** True when `host` is `domain` or a subdomain of it (case-insensitive). */
+function matchesDomain(host: string, domain: string): boolean {
+  const d = domain.toLowerCase().replace(/^www\./, '');
+  return host === d || host.endsWith(`.${d}`);
+}
+
+/** True when the tab's host is on the user's never-flag list. */
+function isExcluded(rawUrl: string, excludedDomains: string[]): boolean {
+  if (excludedDomains.length === 0) return false;
+  let host: string;
+  try {
+    host = new URL(rawUrl).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return excludedDomains.some((d) => d.trim() && matchesDomain(host, d.trim()));
 }
 
 /**
@@ -133,13 +153,23 @@ export function recommendClosures(
   tabs: TabInfo[],
   ctx: RecommendContext,
 ): Recommendation[] {
+  const opts = ctx.options ?? {
+    bookmarked: true,
+    strandedAuth: true,
+    excludedDomains: [],
+  };
   const out: Recommendation[] = [];
   for (const tab of tabs) {
     if (tab.active || tab.pinned) continue;
+    if (isExcluded(tab.url, opts.excludedDomains)) continue;
     const reasons: RecommendReason[] = [];
-    const { normalized } = normalizeUrl(tab.url, ctx.normalize);
-    if (ctx.bookmarkedUrls.has(normalized)) reasons.push('bookmarked');
-    if (isStrandedAuthUrl(tab.url)) reasons.push('stranded-auth');
+    if (opts.bookmarked) {
+      const { normalized } = normalizeUrl(tab.url, ctx.normalize);
+      if (ctx.bookmarkedUrls.has(normalized)) reasons.push('bookmarked');
+    }
+    if (opts.strandedAuth && isStrandedAuthUrl(tab.url)) {
+      reasons.push('stranded-auth');
+    }
     if (reasons.length > 0) out.push({ tabId: tab.id, reasons });
   }
   return out;

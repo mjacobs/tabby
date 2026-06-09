@@ -87,10 +87,13 @@ async function getRecommendations(
   tabs: TabInfo[],
 ): Promise<ViewResponse['getRecommendations']> {
   const settings = await loadSettings();
-  const bookmarkedUrls = await getBookmarkedUrlSet(settings.normalize);
+  const bookmarkedUrls = settings.recommend.bookmarked
+    ? await getBookmarkedUrlSet(settings.normalize)
+    : new Set<string>();
   const recommendations = recommendClosures(tabs, {
     bookmarkedUrls,
     normalize: settings.normalize,
+    options: settings.recommend,
   });
   await appendRecords(buildRecommendationRecords(recommendations, tabs, Date.now()));
   return { recommendations };

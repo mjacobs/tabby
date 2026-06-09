@@ -55,6 +55,18 @@ export interface Settings {
   consolidateTarget: ConsolidateTarget;
   confirmBeforeCommit: boolean;
   /**
+   * Advisory close-recommendation signals (9kb5): per-signal toggles plus a
+   * per-domain opt-out. Flags are always advisory — nothing is auto-closed.
+   */
+  recommend: {
+    /** Flag tabs whose URL is already bookmarked. */
+    bookmarked: boolean;
+    /** Flag tabs stranded on a login/challenge page. */
+    strandedAuth: boolean;
+    /** Domains never flagged (matches the host or any subdomain of it). */
+    excludedDomains: string[];
+  };
+  /**
    * Emit structured canonical tab-state snapshots at operation boundaries (to
    * console.debug + a session ring buffer readable via the `dumpState` message).
    * Off by default; a debugging/testing aid, not user-facing behavior.

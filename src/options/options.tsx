@@ -72,6 +72,10 @@ function Options() {
     update({ normalize: { ...settings!.normalize, ...patch } });
   }
 
+  function updateRecommend(patch: Partial<Settings['recommend']>) {
+    update({ recommend: { ...settings!.recommend, ...patch } });
+  }
+
   const n = settings.normalize;
 
   return (
@@ -191,6 +195,37 @@ function Options() {
       </Section>
 
       <Section
+        title="Close suggestions"
+        desc="Advisory flags in the review list — Tabby suggests, you decide. Nothing is ever closed automatically."
+      >
+        <Check
+          label="Flag tabs that are already bookmarked"
+          checked={settings.recommend.bookmarked}
+          onChange={(v) => updateRecommend({ bookmarked: v })}
+        />
+        <Check
+          label="Flag tabs stranded on a login page (session likely expired)"
+          checked={settings.recommend.strandedAuth}
+          onChange={(v) => updateRecommend({ strandedAuth: v })}
+        />
+        <label class="field">
+          <span>Never flag these domains (one per line, includes subdomains)</span>
+          <textarea
+            rows={4}
+            value={settings.recommend.excludedDomains.join('\n')}
+            onChange={(e) =>
+              updateRecommend({
+                excludedDomains: (e.currentTarget as HTMLTextAreaElement).value
+                  .split('\n')
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              })
+            }
+          />
+        </label>
+      </Section>
+
+      <Section
         title="Developer"
         desc="Diagnostics for debugging and automated testing."
       >
@@ -202,6 +237,16 @@ function Options() {
         <p class="note">
           Emits structured before/after snapshots to the console and a buffer
           readable via the <code>dumpState</code> message. Off by default.
+        </p>
+        <Check
+          label="Trace page navigations to the records log"
+          checked={settings.traceNavigation}
+          onChange={(v) => update({ traceNavigation: v })}
+        />
+        <p class="note">
+          Records main-frame navigations (from/to URL, transition type) locally
+          to refine the stranded-login patterns. Nothing leaves this machine.
+          Off by default.
         </p>
       </Section>
 

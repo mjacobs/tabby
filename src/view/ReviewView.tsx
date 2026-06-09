@@ -12,15 +12,21 @@ import { sortTabs } from '@/core/sortTabs';
 import type { RecommendReason } from '@/core/recommend';
 import { keymap, type Intent } from '@/view/keymap';
 import { Row } from '@/view/Row';
+import { renderItems } from '@/view/renderItems';
+import { computeWindow, scrollToShow } from '@/view/virtualize';
 import {
   currentTab,
   initialState,
   reduce,
   visibleTabs,
   type Action,
-  type ReviewUiState,
 } from '@/view/state';
 import type { ReviewTransport } from '@/view/transport';
+
+/** Default rendered-row height (px); kept in sync with --row-h in review.css. */
+const ROW_HEIGHT = 28;
+/** Extra rows rendered above/below the viewport so fast scrolls stay smooth. */
+const OVERSCAN = 8;
 
 interface Meta {
   closedCount: number;
@@ -56,6 +62,17 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
   );
 
   const filterRef = useRef<HTMLInputElement>(null);
+  // Virtualization: the scroll viewport + its current scroll/height drive which
+  // slice of items renders. Defaults give a sane first paint before measurement.
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(600);
+  // Mirror of scrollTop the cursor-scroll effect reads without a render dep.
+  const scrollTopRef = useRef(0);
+  scrollTopRef.current = scrollTop;
+  // The scrollTop value we last set programmatically; lets onScroll ignore the
+  // echo of our own scroll (which a layout-less env may report clamped).
+  const programmaticTopRef = useRef<number | null>(null);
   // Keyboard handler reads the latest state/flags without re-binding the listener.
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -168,6 +185,50 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // The cursor row's index into the *rendered items* list (headers + rows),
+  // kept in a ref so the scroll-into-view effect below sees the latest position
+  // without re-deriving the item order. Set during render.
+  const cursorItemIndexRef = useRef(0);
+
+  // Keep the cursor row on screen: when j/k/gg/G move it outside the rendered
+  // window, scroll the viewport so the slice re-centres on it. Driven by the
+  // tracked scrollTop state (the source of truth for the window) so it works
+  // even where real layout is absent (jsdom); the DOM element is nudged to match.
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const target = scrollToShow(
+      cursorItemIndexRef.current,
+      scrollTopRef.current,
+      el.clientHeight || viewportHeight,
+      ROW_HEIGHT,
+    );
+    if (target != null) {
+      // Mark this as a programmatic scroll so the resulting onScroll (which in a
+      // layout-less environment may report a clamped value) doesn't clobber the
+      // state-driven window.
+      programmaticTopRef.current = target;
+      scrollTopRef.current = target;
+      el.scrollTop = target;
+      setScrollTop(target);
+    }
+    // Deps cover everything that can move the cursor's rendered row: cursor
+    // position, the tab set, the filter, and collapse state (collapsing a group
+    // above the cursor shifts its rendered index).
+  }, [state.cursor, state.tabs, state.filter, state.collapsed, viewportHeight]);
+
+  // Track the viewport's live height so the render window covers it. We read it
+  // once on mount and on resize; scroll is tracked via onScroll below.
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const measure = () => setViewportHeight(el.clientHeight || viewportHeight);
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+    // Re-measure once the list first appears (loaded toggles the viewport in).
+  }, [loaded]);
+
   async function handleIntent(intent: Intent) {
     switch (intent.type) {
       case 'focusFilter':
@@ -234,7 +295,25 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
 
   const visible = visibleTabs(state);
   const markedCount = state.marked.size;
+
+  // Single source of item order: group headers (from the canonical tab order,
+  // collapse aware) + rows. Virtualization slices this.
   const items = renderItems(state, visible);
+  // The rendered-items index of the cursor row, recorded for the scroll effect.
+  // The cursor indexes `visibleTabs`; a row item's `index` is that same value,
+  // so map cursor → rendered-item index (headers shift it down).
+  const cursorItemIndex = items.findIndex(
+    (it) => it.kind === 'row' && it.index === state.cursor,
+  );
+  cursorItemIndexRef.current = cursorItemIndex < 0 ? 0 : cursorItemIndex;
+  const win = computeWindow(
+    items.length,
+    scrollTop,
+    viewportHeight,
+    ROW_HEIGHT,
+    OVERSCAN,
+  );
+  const windowItems = items.slice(win.start, win.end);
 
   async function closeEmpty() {
     if (!meta) return;
@@ -291,90 +370,77 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
             : 'No tabs match the filter.'}
         </p>
       ) : (
-        <ol class="list">
-          {items.map((item) =>
-            item.kind === 'header' ? (
-              <GroupHeader
-                key={`group-${item.groupId}`}
-                groupId={item.groupId}
-                tabs={state.tabs}
-                marked={state.marked}
-                collapsed={state.collapsed.has(item.groupId)}
-                onToggle={() =>
-                  dispatch({
-                    type: 'toggleCollapse',
-                    groupId: item.groupId,
-                  })
-                }
+        <div
+          class="list-viewport"
+          ref={viewportRef}
+          onScroll={(e) => {
+            const top = (e.currentTarget as HTMLElement).scrollTop;
+            // Ignore the echo of a programmatic scroll-into-view (esp. when the
+            // environment clamps scrollTop to a stale layout height).
+            if (programmaticTopRef.current != null) {
+              programmaticTopRef.current = null;
+              return;
+            }
+            scrollTopRef.current = top;
+            setScrollTop(top);
+          }}
+        >
+          <ol class="list">
+            {win.padTop > 0 && (
+              <li
+                key="spacer-top"
+                class="list-spacer"
+                style={{ height: `${win.padTop}px` }}
               />
-            ) : (
-              <Row
-                key={item.tab.id}
-                tab={item.tab}
-                isCursor={item.index === state.cursor}
-                isMarked={state.marked.has(item.tab.id)}
-                recommendReasons={recs.get(item.tab.id)}
-                onClick={() => void transport.jumpTo(item.tab.id)}
-                onToggle={() => {
-                  dispatch({ type: 'move', delta: item.index - state.cursor });
-                  dispatch({ type: 'toggleMark' });
-                }}
+            )}
+            {windowItems.map((item) =>
+              item.kind === 'header' ? (
+                <GroupHeader
+                  key={`group-${item.groupId}`}
+                  groupId={item.groupId}
+                  tabs={state.tabs}
+                  marked={state.marked}
+                  collapsed={state.collapsed.has(item.groupId)}
+                  onToggle={() =>
+                    dispatch({
+                      type: 'toggleCollapse',
+                      groupId: item.groupId,
+                    })
+                  }
+                />
+              ) : (
+                <Row
+                  key={item.tab.id}
+                  tab={item.tab}
+                  isCursor={item.index === state.cursor}
+                  isMarked={state.marked.has(item.tab.id)}
+                  recommendReasons={recs.get(item.tab.id)}
+                  onClick={() => void transport.jumpTo(item.tab.id)}
+                  onToggle={() => {
+                    dispatch({
+                      type: 'move',
+                      delta: item.index - state.cursor,
+                    });
+                    dispatch({ type: 'toggleMark' });
+                  }}
+                />
+              ),
+            )}
+            {win.padBottom > 0 && (
+              <li
+                key="spacer-bottom"
+                class="list-spacer"
+                style={{ height: `${win.padBottom}px` }}
               />
-            ),
-          )}
-        </ol>
+            )}
+          </ol>
+        </div>
       )}
 
       {toast && <div class="toast">{toast}</div>}
       {state.showHelp && <Help />}
     </div>
   );
-}
-
-/**
- * One entry in the rendered list: either a group header or a tab row. Headers
- * are emitted from the canonical tab order so a collapsed group (which has no
- * visible members) still shows its header in place. `index` on a row is its
- * position in `visibleTabs`, which is what the cursor indexes. (kata#yrez)
- */
-type RenderItem =
-  | { kind: 'header'; groupId: number }
-  | { kind: 'row'; tab: TabInfo; index: number };
-
-function matchesFilter(tab: TabInfo, filter: string): boolean {
-  const q = filter.trim().toLowerCase();
-  if (!q) return true;
-  return (
-    tab.title.toLowerCase().includes(q) || tab.url.toLowerCase().includes(q)
-  );
-}
-
-function renderItems(state: ReviewUiState, visible: TabInfo[]): RenderItem[] {
-  const items: RenderItem[] = [];
-  const headered = new Set<number>();
-  // Row indices come straight from `visible`, whose order matches the canonical
-  // tab order we walk here (same filter + collapse predicate).
-  const indexOf = new Map<number, number>();
-  visible.forEach((t, i) => indexOf.set(t.id, i));
-
-  for (const tab of state.tabs) {
-    // A collapsed group's members are hidden but still count toward whether the
-    // group matches the filter (so its header stays put).
-    if (isGrouped(tab) && state.collapsed.has(tab.groupId)) {
-      if (matchesFilter(tab, state.filter) && !headered.has(tab.groupId)) {
-        items.push({ kind: 'header', groupId: tab.groupId });
-        headered.add(tab.groupId);
-      }
-      continue;
-    }
-    if (!matchesFilter(tab, state.filter)) continue;
-    if (isGrouped(tab) && !headered.has(tab.groupId)) {
-      items.push({ kind: 'header', groupId: tab.groupId });
-      headered.add(tab.groupId);
-    }
-    items.push({ kind: 'row', tab, index: indexOf.get(tab.id) ?? 0 });
-  }
-  return items;
 }
 
 /** Collapsible header for a tab group: marker + name + tab / to-close counts. */

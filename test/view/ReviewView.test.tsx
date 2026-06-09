@@ -288,6 +288,98 @@ describe('ReviewView', () => {
     expect(screen.getAllByText(/bookmarked|stale login/)).toHaveLength(2);
   });
 
+  it('renders only a bounded subset of rows for a large list', async () => {
+    // 500 pinned tabs keep a stable order (pinned sort first, by index), so a
+    // far-down tab is predictably absent from the initial window.
+    const many = Array.from({ length: 500 }, (_, i) =>
+      tab({ id: i + 1, index: i, pinned: true, title: `Tab ${i + 1}` }),
+    );
+    const { transport } = makeTransport(many);
+    const { container } = render(<ReviewView transport={transport} />);
+    await screen.findByText('Tab 1');
+
+    const rows = container.querySelectorAll('.row');
+    // Far fewer than 500 rows are in the DOM (window + overscan only).
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeLessThan(100);
+    // A far-down tab is not rendered yet.
+    expect(screen.queryByText('Tab 400')).toBeNull();
+  });
+
+  it('scrolls the cursor into the window when it moves past the bottom', async () => {
+    const many = Array.from({ length: 500 }, (_, i) =>
+      tab({ id: i + 1, index: i, pinned: true, title: `Tab ${i + 1}` }),
+    );
+    const { transport } = makeTransport(many);
+    const { container } = render(<ReviewView transport={transport} />);
+    await screen.findByText('Tab 1');
+    // The last-in-order tab is well outside the initial window.
+    expect(screen.queryByText('Tab 500')).toBeNull();
+
+    press('G'); // jump cursor to the last tab in order
+
+    // The cursor row is scrolled into the rendered window and now in the DOM.
+    expect(await screen.findByText('Tab 500')).toBeTruthy();
+    // The cursor marker is on the now-visible last row.
+    expect(container.querySelector('.row.cursor')).not.toBeNull();
+    // The original top rows have left the window.
+    expect(screen.queryByText('Tab 1')).toBeNull();
+  });
+
+  it('still marks and commits a row that required scrolling into view', async () => {
+    const many = Array.from({ length: 300 }, (_, i) =>
+      tab({ id: i + 1, index: i, pinned: true, title: `Tab ${i + 1}` }),
+    );
+    const { transport, calls } = makeTransport(many);
+    render(<ReviewView transport={transport} />);
+    await screen.findByText('Tab 1');
+
+    press('G'); // cursor → last tab in order (id 300)
+    await screen.findByText('Tab 300');
+    press('x'); // mark it
+    await screen.findByText('Close 1');
+
+    press('Enter', { metaKey: true });
+    await waitFor(() => expect(calls.commitClose).toEqual([[300]]));
+  });
+
+  it('keeps windowing + cursor mapping correct with a collapsed group in a large list', async () => {
+    // A group near the top of a long list. Collapsing it removes its members
+    // from visibleTabs (so the cursor space shrinks) while its header stays a
+    // rendered row — the virtualization slice and cursor-into-view must still
+    // line up. Pinned + index keep a stable order.
+    const groupSize = 40;
+    const many = Array.from({ length: 500 }, (_, i) =>
+      tab({
+        id: i + 1,
+        index: i,
+        pinned: true,
+        title: `Tab ${i + 1}`,
+        // Tabs 1..40 form group 7; the rest are ungrouped.
+        ...(i < groupSize ? { groupId: 7 } : {}),
+      }),
+    );
+    const { transport, calls } = makeTransport(many);
+    render(<ReviewView transport={transport} />);
+    await screen.findByText('Tab 1');
+
+    // Collapse group 7 (cursor starts on its first member). Members vanish; the
+    // header survives.
+    press('z');
+    await waitFor(() => expect(screen.queryByText('Tab 1')).toBeNull());
+    expect(screen.getByText(/group 7/)).toBeTruthy();
+
+    // G jumps the cursor to the last visible tab (id 500) and scrolls it into
+    // the window despite the collapsed group above shifting rendered indices.
+    press('G');
+    expect(await screen.findByText('Tab 500')).toBeTruthy();
+    // Marking + committing the scrolled-to row resolves to the right tab id.
+    press('x');
+    await screen.findByText('Close 1');
+    press('Enter', { metaKey: true });
+    await waitFor(() => expect(calls.commitClose).toEqual([[500]]));
+  });
+
   it('jumps to a tab on Enter without a modifier', async () => {
     const { transport, calls } = makeTransport([
       tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),

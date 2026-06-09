@@ -106,7 +106,12 @@ body {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 0.6rem 0 0.2rem 1rem;
+  /* Uniform --row-h height so virtualization treats headers and rows the same
+     (see .list-viewport below); flex centres the marker + counts vertically. */
+  padding: 0 0 0 1rem;
+  height: var(--row-h, 28px);
+  display: flex;
+  align-items: center;
   cursor: pointer;
   user-select: none;
 }
@@ -125,6 +130,7 @@ body {
   text-transform: none;
   letter-spacing: 0;
   opacity: 0.8;
+  margin-left: 0.4rem;
 }
 
 /* Rows -------------------------------------------------------------------- */
@@ -132,6 +138,20 @@ body {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+/* Virtualized scroll viewport. A fixed height lets only the slice of rows that
+   intersect the viewport (plus overscan) live in the DOM; --row-h keeps every
+   row + group divider a uniform height so the windowing math stays simple. */
+.list-viewport {
+  --row-h: 28px;
+  overflow-y: auto;
+  /* Fill the space under the sticky header without growing the page. */
+  height: calc(100vh - 4.5rem);
+}
+
+.list-spacer {
+  list-style: none;
 }
 
 .row {
@@ -142,6 +162,7 @@ body {
   border-left: 3px solid transparent;
   cursor: pointer;
   white-space: nowrap;
+  height: var(--row-h, 28px);
 }
 
 .row.cursor {

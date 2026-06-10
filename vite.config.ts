@@ -15,10 +15,12 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      // The review page is opened dynamically (chrome.tabs.create), so it isn't
-      // referenced by the manifest and must be declared as an explicit input.
+      // The review page and side panel are opened dynamically (chrome.tabs.create
+      // / chrome.sidePanel.setOptions), so they aren't referenced by the manifest
+      // and must be declared as explicit inputs.
       input: {
         review: fileURLToPath(new URL('./src/review/review.html', import.meta.url)),
+        sidepanel: fileURLToPath(new URL('./src/sidepanel/sidepanel.html', import.meta.url)),
       },
     },
   },

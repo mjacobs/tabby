@@ -7,14 +7,14 @@ import { setTraceEnabled } from '@/background/trace';
 import { loadSettings } from '@/shared/settings';
 import type { Settings } from '@/shared/types';
 
-chrome.action.onClicked.addListener(() => {
-  void runCleanup();
+chrome.action.onClicked.addListener((tab) => {
+  void runCleanup({ windowId: tab.windowId });
 });
 
-chrome.commands.onCommand.addListener((command) => {
-  if (command === 'run-cleanup') {
-    void runCleanup();
-  }
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command !== 'run-cleanup') return;
+  const win = await chrome.windows.getLastFocused();
+  void runCleanup({ windowId: win.id });
 });
 
 registerMessageHandlers();

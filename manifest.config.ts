@@ -39,6 +39,12 @@ export default defineManifest({
     'webNavigation',
   ],
   optional_permissions: ['sidePanel'],
+  // Registers the panel path declaratively so Chrome's own "Open side panel"
+  // menu item works on a cold start — setOptions() in the orchestrator only
+  // registers it for the current browser session (kata#b08q).
+  side_panel: {
+    default_path: 'src/sidepanel/sidepanel.html',
+  },
   web_accessible_resources: [
     {
       resources: ['src/review/review.html'],

@@ -2,6 +2,7 @@ import type {
   BlankTabPolicy,
   ConsolidateTarget,
   KeepPolicy,
+  ReviewSurface,
   Settings,
 } from '@/shared/types';
 import { DEFAULT_TRACKING_PARAMS } from '@/shared/urlPatterns';
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   preserveGroups: true,
   consolidateTarget: 'focused-window',
   confirmBeforeCommit: false,
+  preferredSurface: 'page',
   recommend: {
     bookmarked: true,
     strandedAuth: true,
@@ -50,6 +52,7 @@ const CONSOLIDATE_TARGETS: readonly ConsolidateTarget[] = [
   'focused-window',
   'new-window',
 ];
+const REVIEW_SURFACES: readonly ReviewSurface[] = ['page', 'sidepanel'];
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -102,6 +105,7 @@ const TOP_LEVEL_KEYS = new Set<keyof Settings>([
   'preserveGroups',
   'consolidateTarget',
   'confirmBeforeCommit',
+  'preferredSurface',
   'recommend',
   'debugLogging',
   'traceNavigation',
@@ -263,6 +267,13 @@ export function coerceSettings(input: unknown): {
       input.confirmBeforeCommit,
       d.confirmBeforeCommit,
       'confirmBeforeCommit',
+      warnings,
+    ),
+    preferredSurface: coerceEnum(
+      input.preferredSurface,
+      REVIEW_SURFACES,
+      d.preferredSurface,
+      'preferredSurface',
       warnings,
     ),
     debugLogging: coerceBool(

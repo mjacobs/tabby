@@ -31,6 +31,25 @@ async function openReview(): Promise<void> {
   await chrome.tabs.create({ url });
 }
 
+/**
+ * Of the predicted-empty windows, keep only those that still exist. Moving a
+ * window's last tab away makes Chrome auto-close it, so by the time the review
+ * renders, a planned-empty window is often already gone — offering to close it
+ * yields a confusing "0 windows closed" (kata 0awf).
+ */
+export async function stillOpenWindowIds(ids: number[]): Promise<number[]> {
+  const open: number[] = [];
+  for (const id of ids) {
+    try {
+      await chrome.windows.get(id);
+      open.push(id);
+    } catch {
+      // Already auto-closed.
+    }
+  }
+  return open;
+}
+
 /** Run the full consolidate → dedup → sort pipeline, then open the review. */
 export async function runCleanup(): Promise<void> {
   const settings = await loadSettings();
@@ -55,7 +74,7 @@ export async function runCleanup(): Promise<void> {
     reviewTabs: plan.reviewTabs,
     targetWindowId,
     closedCount: plan.closeTabIds.length,
-    emptyWindowIds: plan.emptyWindowIds,
+    emptyWindowIds: await stillOpenWindowIds(plan.emptyWindowIds),
     stayingPinnedTabIds: plan.stayingPinnedTabIds,
     confirmBeforeCommit: settings.confirmBeforeCommit,
     generatedAt: Date.now(),

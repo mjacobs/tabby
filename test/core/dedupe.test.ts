@@ -85,12 +85,30 @@ describe('dedupe', () => {
       ).toEqual([]);
     });
 
-    it('protects browser/extension/file pages from dedup', () => {
+    it('dedups exact-duplicate browser/extension pages (kata swbr)', () => {
       const a = tab({ url: 'chrome://extensions' });
       const b = tab({ url: 'chrome://extensions' });
       const ext1 = tab({ url: 'chrome-extension://abc/p.html' });
       const ext2 = tab({ url: 'chrome-extension://abc/p.html' });
-      const { close } = dedupe([a, b, ext1, ext2], settings());
+      const { keep, close } = dedupe([a, b, ext1, ext2], settings());
+      expect(close).toHaveLength(2);
+      expect(keep).toHaveLength(2);
+      expect(new Set(keep.map((t) => t.url))).toEqual(
+        new Set(['chrome://extensions', 'chrome-extension://abc/p.html']),
+      );
+    });
+
+    it('keeps non-identical browser URLs distinct (no normalization)', () => {
+      const a = tab({ url: 'chrome://settings' });
+      const b = tab({ url: 'chrome://settings/passwords' });
+      const { close } = dedupe([a, b], settings());
+      expect(close).toEqual([]);
+    });
+
+    it('still protects unparseable URLs from dedup', () => {
+      const a = tab({ url: 'not a url' });
+      const b = tab({ url: 'not a url' });
+      const { close } = dedupe([a, b], settings());
       expect(close).toEqual([]);
     });
   });

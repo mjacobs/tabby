@@ -53,8 +53,16 @@ function resolveMode(tab: TabInfo, settings: Settings): DedupMode {
     case 'blank':
       // BlankTabPolicy values are a subset of DedupMode by construction.
       return settings.blankTabPolicy;
-    // browser / extension / file / other are protected for now; each is a
-    // distinct category so it can grow its own policy later.
+    case 'browser':
+    case 'extension':
+    case 'file':
+      // Dedup on exact URL only — normalizeUrl passes non-http(s) URLs
+      // through untouched, so two identical chrome://extensions/ tabs
+      // collapse while chrome://settings vs chrome://settings/passwords
+      // stay distinct (kata swbr).
+      return 'dedup';
+    // 'other' (unparseable) stays protected — we can't compare what we
+    // can't parse.
     default:
       return 'protect';
   }

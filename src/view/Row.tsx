@@ -12,16 +12,20 @@ interface RowProps {
   onToggle: () => void;
 }
 
-/** Badge label + tooltip per recommendation reason. Advisory only. */
+/**
+ * Badge label + tooltip per recommendation reason. Advisory only: clicking a
+ * badge marks the tab for closing (it never closes anything directly).
+ */
 const REASON_BADGES: Record<RecommendReason, { label: string; title: string }> =
   {
     bookmarked: {
       label: 'bookmarked',
-      title: 'Already bookmarked — close to reclaim tab real estate?',
+      title: 'Already bookmarked — click to mark for closing.',
     },
     'stranded-auth': {
       label: 'stale login',
-      title: 'Looks like a stranded login page — the session likely expired.',
+      title:
+        'Looks like a stranded login page (session likely expired) — click to mark for closing.',
     },
   };
 
@@ -76,13 +80,17 @@ export function Row({
         {tab.audible && <span class="badge">audio</span>}
         {isGrouped(tab) && <span class="badge group">group</span>}
         {recommendReasons?.map((reason) => (
-          <span
+          <button
             key={reason}
             class="badge suggest"
             title={REASON_BADGES[reason].title}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
           >
             {REASON_BADGES[reason].label}
-          </span>
+          </button>
         ))}
       </span>
     </li>

@@ -380,6 +380,25 @@ describe('ReviewView', () => {
     await waitFor(() => expect(calls.commitClose).toEqual([[500]]));
   });
 
+  it('clicking a suggestion badge marks the tab, never closes it (kata 49m8)', async () => {
+    const { transport, calls } = makeTransport(
+      [
+        tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+        tab({ id: 2, url: 'https://bank.com/login', title: 'Bank login' }),
+      ],
+      [{ tabId: 2, reasons: ['stranded-auth'] }],
+    );
+    render(<ReviewView transport={transport} />);
+    const badge = await screen.findByText('stale login');
+
+    badge.click();
+    // The badged tab is now marked (commit button reflects it)…
+    await screen.findByText('Close 1');
+    // …but nothing was closed and the click did not jump to the tab.
+    expect(calls.commitClose).toEqual([]);
+    expect(calls.jumpTo).toEqual([]);
+  });
+
   it('jumps to a tab on Enter without a modifier', async () => {
     const { transport, calls } = makeTransport([
       tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),

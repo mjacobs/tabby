@@ -228,11 +228,20 @@ body {
   border-color: var(--accent);
 }
 
-/* Advisory close-recommendation flags (kata 9kb5). */
+/* Advisory close-recommendation flags (kata 9kb5). Rendered as a quiet hint,
+   not a primary button; clicking marks the tab for closing (kata 49m8). */
 .badge.suggest {
+  font: inherit;
+  font-size: 0.68rem;
+  background: none;
+  color: var(--muted);
+  border-style: dashed;
+  cursor: pointer;
+}
+
+.badge.suggest:hover {
   color: var(--warn, #b58900);
   border-color: var(--warn, #b58900);
-  cursor: help;
 }
 
 /* Toast + help ------------------------------------------------------------ */

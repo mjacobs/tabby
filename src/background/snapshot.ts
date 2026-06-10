@@ -10,12 +10,14 @@ import { tabInfoFromChromeTab } from '@/shared/tabs';
  * review page so the cleanup never moves or closes it.
  */
 export async function snapshotWindows(
-  reviewUrl: string,
+  _reviewUrl: string,
 ): Promise<WindowSnapshot[]> {
   const windows = await chrome.windows.getAll({
     populate: true,
     windowTypes: ['normal'],
   });
+
+  const extensionPrefix = `chrome-extension://${chrome.runtime.id}/`;
 
   return windows
     .filter((w) => w.id != null)
@@ -23,7 +25,7 @@ export async function snapshotWindows(
       id: w.id!,
       focused: w.focused,
       tabs: (w.tabs ?? [])
-        .filter((t) => t.id != null && t.url !== reviewUrl)
+        .filter((t) => t.id != null && (!t.url || !t.url.startsWith(extensionPrefix)))
         .map(tabInfoFromChromeTab),
     }));
 }

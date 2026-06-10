@@ -11,8 +11,6 @@ import { tabInfoFromChromeTab } from '@/shared/tabs';
 import type { Settings, TabInfo } from '@/shared/types';
 import type { Recommendation } from '@/core/recommend';
 
-const REVIEW_PAGE = 'src/review/review.html';
-
 export interface ReviewTransport {
   getReview(): Promise<ReviewState | null>;
   /** Current settings (for live re-sorting of the review list). */
@@ -44,10 +42,10 @@ export const chromeTransport: ReviewTransport = {
     return (await sendRequest({ type: 'exportSettings' })).settings;
   },
   async queryTabs(windowId) {
-    const reviewUrl = chrome.runtime.getURL(REVIEW_PAGE);
+    const extensionPrefix = `chrome-extension://${chrome.runtime.id}/`;
     const tabs = await chrome.tabs.query({ windowId });
     return tabs
-      .filter((t) => t.id != null && t.url !== reviewUrl)
+      .filter((t) => t.id != null && (!t.url || !t.url.startsWith(extensionPrefix)))
       .map(tabInfoFromChromeTab);
   },
   async jumpTo(tabId) {

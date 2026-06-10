@@ -21,7 +21,8 @@ function reviewUrl(): string {
 /** Open the review page, reusing an existing one if present. */
 async function openReviewPage(): Promise<void> {
   const url = reviewUrl();
-  const [existing] = await chrome.tabs.query({ url });
+  const tabs = await chrome.tabs.query({});
+  const existing = tabs.find((t) => t.url && t.url.startsWith(url));
   if (existing?.id != null) {
     await chrome.tabs.update(existing.id, { active: true });
     if (existing.windowId != null) {

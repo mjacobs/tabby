@@ -18,12 +18,110 @@ function fakeDriver() {
     async moveGroup(groupId, windowId, index) {
       calls.push(`group ${groupId} -> w${windowId}@${index}`);
     },
+    async groupTabs(groupId, tabIds) {
+      calls.push(`regroup ${groupId}: ${tabIds.join(',')}`);
+    },
     async createWindow() {
       calls.push('createWindow');
       return 99;
     },
   };
   return { driver, calls };
+}
+
+interface StripTab {
+  id: number;
+  groupId?: number;
+}
+
+/**
+ * A stateful fake that models the real tab strip — including the Chrome quirk
+ * the original call-recording fake missed: `chrome.tabs.move` on a grouped tab
+ * whose target index falls outside the group's contiguous span EJECTS the tab
+ * from its group (groupId cleared). In-span moves keep membership.
+ * `ejectOnAnyMove` simulates the harsher historical behavior where any
+ * tabs.move ejects, to exercise the regroup repair path.
+ */
+function stripFake(
+  initial: Record<number, StripTab[]>,
+  opts: { ejectOnAnyMove?: boolean } = {},
+) {
+  const windows = new Map<number, StripTab[]>(
+    Object.entries(initial).map(([k, v]) => [
+      Number(k),
+      v.map((t) => ({ ...t })),
+    ]),
+  );
+
+  const find = (tabId: number) => {
+    for (const [winId, tabs] of windows) {
+      const idx = tabs.findIndex((t) => t.id === tabId);
+      if (idx !== -1) return { winId, idx };
+    }
+    throw new Error(`unknown tab ${tabId}`);
+  };
+
+  const driver: TabsDriver = {
+    async removeTabs(ids) {
+      for (const id of ids) {
+        const { winId, idx } = find(id);
+        windows.get(winId)!.splice(idx, 1);
+      }
+    },
+    async moveTabs(ids, windowId, index) {
+      // Chrome moves a multi-id batch one tab at a time, left to right.
+      let at = index;
+      for (const id of ids) {
+        const { winId, idx } = find(id);
+        const [moving] = windows.get(winId)!.splice(idx, 1);
+        const dest = windows.get(windowId)!;
+        const target = at === -1 ? dest.length : Math.min(at, dest.length);
+        if (moving.groupId !== undefined) {
+          const positions = dest.flatMap((t, p) =>
+            t.groupId === moving.groupId ? [p] : [],
+          );
+          const inSpan =
+            positions.length > 0 &&
+            target >= positions[0] &&
+            target <= positions[positions.length - 1] + 1;
+          if (opts.ejectOnAnyMove || !inSpan) delete moving.groupId;
+        }
+        dest.splice(target, 0, moving);
+        if (at !== -1) at += 1;
+      }
+    },
+    async moveGroup(groupId, windowId, index) {
+      for (const [winId, tabs] of windows) {
+        const members = tabs.filter((t) => t.groupId === groupId);
+        if (members.length === 0) continue;
+        windows.set(
+          winId,
+          tabs.filter((t) => t.groupId !== groupId),
+        );
+        const dest = windows.get(windowId)!;
+        const at = index === -1 ? dest.length : Math.min(index, dest.length);
+        dest.splice(at, 0, ...members);
+        return;
+      }
+    },
+    async groupTabs(groupId, tabIds) {
+      for (const id of tabIds) {
+        const { winId, idx } = find(id);
+        windows.get(winId)![idx].groupId = groupId;
+      }
+    },
+    async createWindow() {
+      windows.set(99, []);
+      return 99;
+    },
+  };
+
+  const order = (winId: number) => windows.get(winId)!.map((t) => t.id);
+  const groupOf = (tabId: number) => {
+    const { winId, idx } = find(tabId);
+    return windows.get(winId)![idx].groupId;
+  };
+  return { driver, order, groupOf };
 }
 
 function win(id: number, focused: boolean, tabs: WindowSnapshot['tabs']) {
@@ -62,7 +160,7 @@ describe('applyPlan', () => {
     expect(calls).toContain(`remove ${dup.id}`);
   });
 
-  it('moves whole groups via moveGroup, not as loose tabs', async () => {
+  it('positions whole groups via moveGroup at their sorted slot', async () => {
     const g1 = tab({ url: 'https://g.com/a', windowId: 2, groupId: 5 });
     const g2 = tab({ url: 'https://g.com/b', windowId: 2, groupId: 5 });
     const plan = buildCleanupPlan({
@@ -76,13 +174,26 @@ describe('applyPlan', () => {
     expect(calls).toContain('group 5 -> w1@0');
   });
 
-  it('repositions groups as units, never moving grouped tabs by id', async () => {
-    // Regression: moving a grouped tab with chrome.tabs.move ejects it from its
-    // group, so a multi-tab group must travel via moveGroup only. The previous
-    // reorder moved every survivor (group members included) in one tabs.move,
-    // which dissolved the group down to its last member in a real browser —
-    // invisible to the old call-recording fake. This asserts the contract that
-    // prevents it: no grouped tab id ever passes through moveTabs.
+  it('models ejection in the fake: out-of-span moves dissolve membership', async () => {
+    // Sanity-check the fake itself — the original regression (f2be518) hid in
+    // a fake that treated tabs.move as a pure reorder. This proves the quirk
+    // is now representable: an in-span move keeps membership, an out-of-span
+    // move clears it.
+    const { driver, groupOf } = stripFake({
+      1: [{ id: 1, groupId: 7 }, { id: 2, groupId: 7 }, { id: 3, groupId: 7 }, { id: 4 }],
+    });
+
+    await driver.moveTabs([2], 1, 0); // inside the group's span
+    expect(groupOf(2)).toBe(7);
+    await driver.moveTabs([2], 1, 3); // past the span — ejected
+    expect(groupOf(2)).toBeUndefined();
+  });
+
+  it('sorts within a group by URL without ejecting members', async () => {
+    // The within-group re-sort moves grouped tabs by id, but only to indices
+    // inside the group's span — so on the ejection-modeling fake the strip
+    // must end up in the plan's URL-sorted order AND every member must keep
+    // its groupId.
     const loose1 = tab({ url: 'https://a.com', windowId: 1 });
     const g1 = tab({ url: 'https://g.com/c', windowId: 2, groupId: 7 });
     const g2 = tab({ url: 'https://g.com/a', windowId: 2, groupId: 7 });
@@ -93,31 +204,49 @@ describe('applyPlan', () => {
       settings: settings(),
     });
 
-    const movedByTabsMove: number[] = [];
-    const groupMoves: number[] = [];
-    const driver: TabsDriver = {
-      async removeTabs() {},
-      async moveTabs(moveIds) {
-        movedByTabsMove.push(...moveIds);
-      },
-      async moveGroup(groupId) {
-        groupMoves.push(groupId);
-      },
-      async createWindow() {
-        return 99;
-      },
-    };
+    // Plan sanity: the group's members are URL-sorted within the group.
+    expect(plan.reviewTabs.filter(isGrouped).map((t) => t.id)).toEqual([
+      g2.id,
+      g3.id,
+      g1.id,
+    ]);
+
+    const { driver, order, groupOf } = stripFake({
+      1: [{ id: loose1.id }],
+      2: [
+        { id: g1.id, groupId: 7 },
+        { id: g2.id, groupId: 7 },
+        { id: g3.id, groupId: 7 },
+        { id: loose2.id },
+      ],
+    });
 
     await applyPlan(plan, driver);
 
-    const groupedIds = new Set(
-      plan.reviewTabs.filter(isGrouped).map((t) => t.id),
-    );
-    expect(groupedIds.size).toBe(3); // sanity: all 3 members survived planning
-    expect(groupMoves).toContain(7); // the group is repositioned as a unit
-    for (const id of movedByTabsMove) {
-      expect(groupedIds.has(id)).toBe(false); // ...and never as loose tabs
+    expect(order(1)).toEqual(plan.targetOrder); // strip matches the review list
+    for (const id of [g1.id, g2.id, g3.id]) {
+      expect(groupOf(id)).toBe(7); // ...and no member was ejected
     }
+  });
+
+  it('repairs membership via groupTabs when the browser ejects on any move', async () => {
+    // Older Chrome builds ejected a grouped tab on ANY tabs.move, in-span or
+    // not. The regroup correction step must restore membership in that case.
+    const g1 = tab({ url: 'https://g.com/b', windowId: 1, groupId: 7 });
+    const g2 = tab({ url: 'https://g.com/a', windowId: 1, groupId: 7 });
+    const plan = buildCleanupPlan({
+      windows: [win(1, true, [g1, g2])],
+      settings: settings(),
+    });
+
+    const { driver, groupOf } = stripFake(
+      { 1: [{ id: g1.id, groupId: 7 }, { id: g2.id, groupId: 7 }] },
+      { ejectOnAnyMove: true },
+    );
+
+    await applyPlan(plan, driver);
+    expect(groupOf(g1.id)).toBe(7);
+    expect(groupOf(g2.id)).toBe(7);
   });
 
   it('creates a window in new-window mode and targets it', async () => {

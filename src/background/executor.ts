@@ -12,6 +12,8 @@ export interface TabsDriver {
   removeTabs(ids: number[]): Promise<void>;
   moveTabs(ids: number[], windowId: number, index: number): Promise<void>;
   moveGroup(groupId: number, windowId: number, index: number): Promise<void>;
+  /** Re-assert membership of tabs in an existing group (no-op for members). */
+  groupTabs(groupId: number, tabIds: number[]): Promise<void>;
   /** Create an empty normal window and return its id. */
   createWindow(): Promise<number>;
 }
@@ -24,13 +26,20 @@ export interface TabsDriver {
  * `chrome.tabGroups.move` reposition cross-window in one call.
  *
  * Group integrity: a tab group is repositioned with `moveGroup` (a whole-group
- * move) and its members are NEVER moved by id. Moving a grouped tab with
- * `chrome.tabs.move` ejects it from its group, so the earlier approach — a
- * single ordered `moveTabs` over the whole strip — silently dissolved every
- * multi-tab group down to its last member even though the tabs stayed
- * positionally contiguous. Groups travel as units instead. (A group's internal
- * order is whatever `moveGroup` preserves; the review list still shows the
- * sorted order.)
+ * move), never by moving its members across the strip. Moving a grouped tab
+ * with `chrome.tabs.move` to an index outside its group's contiguous span
+ * ejects it from the group, so the earliest approach — a single ordered
+ * `moveTabs` over the whole strip — silently dissolved every multi-tab group
+ * down to its last member even though the tabs stayed positionally contiguous.
+ *
+ * Within-group order: `reviewTabs` already carries each group's members in
+ * URL-sorted order, so after `moveGroup` places the group the members are
+ * re-sorted in place — each per-tab move targets an index strictly inside the
+ * group's span, which Chrome does not treat as leaving the group. Because
+ * `chrome.tabs.move` semantics around grouped tabs have shifted across Chrome
+ * versions, membership is then re-asserted with `groupTabs`
+ * (`chrome.tabs.group` with an existing groupId) — a no-op when the in-span
+ * moves kept the group intact, a repair if one ever ejects.
  *
  * Returns the resolved target window id (the focused window, or the one created
  * for new-window mode) so the review can mirror that window's live tab state.
@@ -69,15 +78,26 @@ export async function applyPlan(
     if (isGrouped(t)) {
       await flushLoose();
       const groupId = t.groupId!;
-      let size = 0;
+      const members: number[] = [];
       // reviewTabs keeps a group's members contiguous, so this run is the
-      // whole group.
+      // whole group — in URL-sorted order.
       while (i < rest.length && rest[i].groupId === groupId) {
-        size += 1;
+        members.push(rest[i].id);
         i += 1;
       }
       await driver.moveGroup(groupId, targetId, index);
-      index += size;
+      // The group now occupies [index, index + members.length) but keeps its
+      // prior internal order. Place sorted member j at index + j: every
+      // target is inside the group's span (so the move cannot eject the tab),
+      // the already-placed prefix is never disturbed, and the last member
+      // lands in place implicitly.
+      if (members.length > 1) {
+        for (let j = 0; j < members.length - 1; j += 1) {
+          await driver.moveTabs([members[j]], targetId, index + j);
+        }
+        await driver.groupTabs(groupId, members);
+      }
+      index += members.length;
     } else {
       looseRun.push(t.id);
       i += 1;
@@ -128,6 +148,15 @@ export const chromeDriver: TabsDriver = {
   async moveGroup(groupId, windowId, index) {
     try {
       await chrome.tabGroups.move(groupId, { windowId, index });
+    } catch {
+      // Group may have been dissolved mid-run — skip it.
+    }
+  },
+  async groupTabs(groupId, tabIds) {
+    const [first, ...rest] = tabIds;
+    if (first === undefined) return;
+    try {
+      await chrome.tabs.group({ groupId, tabIds: [first, ...rest] });
     } catch {
       // Group may have been dissolved mid-run — skip it.
     }

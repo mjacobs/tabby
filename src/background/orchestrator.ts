@@ -19,7 +19,7 @@ function reviewUrl(): string {
 }
 
 /** Open the review page, reusing an existing one if present. */
-async function openReviewPage(): Promise<void> {
+export async function openReviewPage(): Promise<void> {
   const url = reviewUrl();
   const tabs = await chrome.tabs.query({});
   const existing = tabs.find((t) => t.url && t.url.startsWith(url));
@@ -85,7 +85,7 @@ export interface RunCleanupOptions {
 /** Run the full consolidate → dedup → sort pipeline, then open the review. */
 export async function runCleanup(opts: RunCleanupOptions = {}): Promise<void> {
   const settings = await loadSettings();
-  const windows = await snapshotWindows(reviewUrl());
+  const windows = await snapshotWindows();
   await logState('orchestrator:before', { windows, settings });
   const plan = buildCleanupPlan({ windows, settings });
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { stillOpenWindowIds } from '@/background/orchestrator';
+import { stillOpenWindowIds, openReviewPage } from '@/background/orchestrator';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -26,3 +26,60 @@ describe('stillOpenWindowIds', () => {
     expect(get).not.toHaveBeenCalled();
   });
 });
+
+describe('openReviewPage', () => {
+  it('creates a new tab when no existing review page starts with the review URL (vp5b)', async () => {
+    const getURL = vi.fn(() => 'chrome-extension://abc/src/review/review.html');
+    const query = vi.fn(() =>
+      Promise.resolve([
+        { id: 1, url: 'https://ex.com', windowId: 10 },
+        { id: 2, url: 'chrome-extension://abc/options/options.html', windowId: 10 },
+      ]),
+    );
+    const create = vi.fn();
+    const updateTab = vi.fn();
+    const updateWindow = vi.fn();
+
+    vi.stubGlobal('chrome', {
+      runtime: { getURL },
+      tabs: { query, create, update: updateTab },
+      windows: { update: updateWindow },
+    });
+
+    await openReviewPage();
+
+    expect(getURL).toHaveBeenCalledWith('src/review/review.html');
+    expect(query).toHaveBeenCalledWith({});
+    expect(create).toHaveBeenCalledWith({ url: 'chrome-extension://abc/src/review/review.html' });
+    expect(updateTab).not.toHaveBeenCalled();
+    expect(updateWindow).not.toHaveBeenCalled();
+  });
+
+  it('reuses an existing review tab whose URL merely starts with reviewUrl() (e.g. trailing #hash) and focuses window/tab (vp5b)', async () => {
+    const getURL = vi.fn(() => 'chrome-extension://abc/src/review/review.html');
+    const query = vi.fn(() =>
+      Promise.resolve([
+        { id: 1, url: 'https://ex.com', windowId: 10 },
+        { id: 2, url: 'chrome-extension://abc/src/review/review.html#some-hash', windowId: 10 },
+      ]),
+    );
+    const create = vi.fn();
+    const updateTab = vi.fn();
+    const updateWindow = vi.fn();
+
+    vi.stubGlobal('chrome', {
+      runtime: { getURL },
+      tabs: { query, create, update: updateTab },
+      windows: { update: updateWindow },
+    });
+
+    await openReviewPage();
+
+    expect(getURL).toHaveBeenCalledWith('src/review/review.html');
+    expect(query).toHaveBeenCalledWith({});
+    expect(create).not.toHaveBeenCalled();
+    expect(updateTab).toHaveBeenCalledWith(2, { active: true });
+    expect(updateWindow).toHaveBeenCalledWith(10, { focused: true });
+  });
+});
+

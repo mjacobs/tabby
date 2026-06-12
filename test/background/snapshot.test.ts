@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { tabInfoFromChromeTab } from '@/shared/tabs';
+import { snapshotWindows } from '@/background/snapshot';
+import { chromeTransport } from '@/view/transport';
+
+afterEach(() => vi.unstubAllGlobals());
 
 // A chrome.tabs.Tab is structurally large; build the subset we map and cast.
 function chromeTab(over: Partial<chrome.tabs.Tab>): chrome.tabs.Tab {
@@ -61,3 +65,65 @@ describe('tabInfoFromChromeTab', () => {
     expect(tabInfoFromChromeTab(chromeTab({ audible: undefined })).audible).toBe(false);
   });
 });
+
+describe('snapshotWindows', () => {
+  it('excludes any tab whose URL starts with chrome-extension://<runtime.id>/ while keeping tabs with no URL (vp5b)', async () => {
+    const runtimeId = 'extension-id-123';
+    vi.stubGlobal('chrome', {
+      runtime: {
+        id: runtimeId,
+      },
+      windows: {
+        getAll: vi.fn(() =>
+          Promise.resolve([
+            {
+              id: 1,
+              focused: true,
+              tabs: [
+                { id: 10, url: 'https://google.com', index: 0 },
+                { id: 11, url: '', pendingUrl: 'https://ex.com', index: 1 },
+                { id: 12, url: `chrome-extension://${runtimeId}/review/review.html`, index: 2 },
+                { id: 13, url: `chrome-extension://${runtimeId}/options/options.html?foo=bar`, index: 3 },
+                { id: 14, url: undefined, index: 4 }, // tab with no URL at all
+              ],
+            },
+          ]),
+        ),
+      },
+    });
+
+    const snapshot = await snapshotWindows();
+    expect(snapshot).toHaveLength(1);
+    expect(snapshot[0].id).toBe(1);
+    const tabs = snapshot[0].tabs;
+    expect(tabs).toHaveLength(3);
+    expect(tabs.map((t) => t.id)).toEqual([10, 11, 14]);
+  });
+});
+
+describe('chromeTransport.queryTabs', () => {
+  it('excludes any tab whose URL starts with chrome-extension://<runtime.id>/ while keeping tabs with no URL (vp5b)', async () => {
+    const runtimeId = 'extension-id-123';
+    vi.stubGlobal('chrome', {
+      runtime: {
+        id: runtimeId,
+      },
+      tabs: {
+        query: vi.fn(({ windowId }) =>
+          Promise.resolve([
+            { id: 10, url: 'https://google.com', windowId, index: 0 },
+            { id: 11, url: '', pendingUrl: 'https://ex.com', windowId, index: 1 },
+            { id: 12, url: `chrome-extension://${runtimeId}/review/review.html`, windowId, index: 2 },
+            { id: 13, url: `chrome-extension://${runtimeId}/options/options.html?foo=bar`, windowId, index: 3 },
+            { id: 14, url: undefined, windowId, index: 4 }, // tab with no URL at all
+          ]),
+        ),
+      },
+    });
+
+    const tabs = await chromeTransport.queryTabs(1);
+    expect(tabs).toHaveLength(3);
+    expect(tabs.map((t) => t.id)).toEqual([10, 11, 14]);
+  });
+});
+

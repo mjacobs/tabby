@@ -9,9 +9,7 @@ import { tabInfoFromChromeTab } from '@/shared/tabs';
  * Snapshot every normal window's tabs as WindowSnapshots, excluding Tabby's own
  * review page so the cleanup never moves or closes it.
  */
-export async function snapshotWindows(
-  _reviewUrl: string,
-): Promise<WindowSnapshot[]> {
+export async function snapshotWindows(): Promise<WindowSnapshot[]> {
   const windows = await chrome.windows.getAll({
     populate: true,
     windowTypes: ['normal'],

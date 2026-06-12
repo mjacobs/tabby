@@ -22,7 +22,6 @@ import type {
 } from '@/shared/messages';
 import type { Settings } from '@/shared/types';
 
-const REVIEW_PAGE = 'src/review/review.html';
 const LOG_KEY = 'tabby:stateLog';
 const MAX_SNAPSHOTS = 20;
 
@@ -80,10 +79,6 @@ async function writeBuffer(buffer: CanonicalSnapshot[]): Promise<void> {
   await chrome.storage.session.set({ [LOG_KEY]: buffer });
 }
 
-function reviewUrl(): string {
-  return chrome.runtime.getURL(REVIEW_PAGE);
-}
-
 /**
  * Capture and record a canonical snapshot at an operation boundary. No-op when
  * Settings.debugLogging is off (cheap: only a settings read). Callers that
@@ -96,7 +91,7 @@ export async function logState(
   const settings = opts.settings ?? (await loadSettings());
   if (!settings.debugLogging) return;
 
-  const windows = opts.windows ?? (await snapshotWindows(reviewUrl()));
+  const windows = opts.windows ?? (await snapshotWindows());
   const review = await getReview();
   const snap = serializeState(windows, settings, review, label, Date.now());
 
@@ -111,7 +106,7 @@ export async function logState(
  */
 export async function dumpState(): Promise<StateDump> {
   const settings = await loadSettings();
-  const windows = await snapshotWindows(reviewUrl());
+  const windows = await snapshotWindows();
   const review = await getReview();
   const current = serializeState(windows, settings, review, 'dumpState', Date.now());
   return { current, buffer: await readBuffer() };

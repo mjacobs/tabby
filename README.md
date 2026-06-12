@@ -12,7 +12,7 @@ Tabby is fully private, local-first, and telemetry-free.
 
 ### 🌪️ The Cleanup Pipeline
 Tabby's pipeline is divided into three distinct automated stages before presenting the review:
-1. **Consolidation:** Gathers tabs from all normal windows into the currently focused window, grouping them beautifully.
+1. **Consolidation:** Gathers tabs from all normal windows into the currently focused window, moving tab groups as intact units.
 2. **Deduplication:** Merges identical pages (with customizable query parameter stripping and path normalizations) to auto-close exact duplicates while protecting your active, pinned, or audible tabs.
 3. **Sorting:** Organizes remaining tabs lexicographically (Host → Path → Query) to put similar topics together, while maintaining tab group contiguity and protecting pinned tabs at the front.
 
@@ -27,6 +27,7 @@ No mouse required. Tabby provides an extremely fast, vim-inspired keymap to revi
 - `Enter` — Jump directly to the selected tab, focusing its window
 - `⌘+Enter` / `Ctrl+Enter` — Commit and close all marked tabs
 - `u` — Undo the last commit, restoring closed tabs with full browser history
+- `z` — Collapse / expand the tab group under the cursor
 - `?` — Toggle the keyboard shortcut help cheatsheet
 - `Esc` — Dismiss overlays, visual mode, or active filters
 
@@ -109,6 +110,9 @@ pnpm format     # Re-formats code files with Prettier
 ```
 
 *Note: When running tests, always use `pnpm test` (or `vitest run`). Avoid `pnpm test run`, as Vitest interprets "run" as a search filter and will run zero tests.*
+
+For the full design rationale see [`DESIGN.md`](./DESIGN.md), and for the phased
+execution ledger see [`PLAN.md`](./PLAN.md).
 
 ---
 

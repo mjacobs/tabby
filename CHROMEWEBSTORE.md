@@ -121,7 +121,7 @@ We do not, and can never, share your data with third parties because we do not c
 
 ## 5. Contact
 If you have any questions or concerns regarding this privacy policy, please contact us at:
-[Your Support Email Here]
+mjacobs@apache.org
 ```
 
 ---
@@ -143,10 +143,12 @@ Matthew Jacobs
 [mjacobs@apache.org] (or chosen developer email)
 
 **Support URL / Email** [RECOMMENDED]
-https://github.com/mj/tabby/issues (or your public repository issues tracker)
+https://github.com/mjacobs/tabby/issues — pending: the repo currently lives on
+a private git server and has not been published to GitHub yet (kata v6n4 gates
+flipping it public).
 
 **Homepage URL** [RECOMMENDED]
-https://github.com/mj/tabby
+https://github.com/mjacobs/tabby (pending, see above)
 
 ---
 
@@ -167,7 +169,7 @@ This section outlines the steps, gotchas, and effort required to move Tabby from
 1. **One-Time Developer Registration ($5 USD):**
    Google requires a one-time fee to open a Chrome Developer account. Register at: [Chrome Developer Console](https://chrome.google.com/webstore/devconsole).
 2. **Setup a Public Privacy Policy URL:**
-   Even though Tabby collects no data, utilizing permissions like `tabs`, `bookmarks`, and `webNavigation` triggers an mandatory review audit. You must host the privacy policy text provided above (e.g. at `https://mj.github.io/tabby/privacy.html` or a public GitHub Gist) and paste the URL in the console.
+   Even though Tabby collects no data, utilizing permissions like `tabs`, `bookmarks`, and `webNavigation` triggers a mandatory review audit. You must host the privacy policy text provided above (e.g. at `https://mjacobs.github.io/tabby/privacy.html` or a public GitHub Gist) and paste the URL in the console.
 3. **Generate Store Screenshots:**
    The store requires at least one 1280×800 or 640×400 screenshot. Prepare these using Chrome in a clean profile with normal-sized tabs to ensure a crisp, premium look.
 4. **Remove Dev "key" from Production Build:**
@@ -177,18 +179,22 @@ This section outlines the steps, gotchas, and effort required to move Tabby from
 
 ### 📦 2. Packing for Production (Clean ZIP)
 
-To create a compliant ZIP file excluding developer configurations, run the following commands in the project root:
+To create a compliant ZIP file, run the following command in the project root:
 
 ```bash
-# 1. Compile and build the production assets into dist/
-pnpm build
-
-# 2. Package ONLY the contents of the compiled dist/ folder
-cd dist
-zip -r ../tabby-extension.zip .
-cd ..
+pnpm pack:store   # builds dist/, strips the dev "key", zips → tabby-extension.zip
 ```
-*Note: This guarantees that no `.git`, `node_modules`, test suites, or `CHROMEWEBSTORE.md` files are bundled into the final extension. The ZIP file will be extremely small (~100KB), which accelerates the review process.*
+
+This runs `pnpm build` and then `scripts/pack-store.mjs`, which removes the
+pinned dev `"key"` from the ZIP's `manifest.json` (see the gotcha in §1.4) and
+restores `dist/` afterwards so a locally loaded unpacked install keeps its
+stable extension ID. Only the compiled `dist/` contents are bundled — no
+`.git`, `node_modules`, test suites, or `CHROMEWEBSTORE.md`. Verify before
+uploading:
+
+```bash
+unzip -p tabby-extension.zip manifest.json | grep -c '"key"'   # must print 0
+```
 
 ### ⏱️ 3. Effort Estimate & Timeline
 

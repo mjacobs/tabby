@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "pack:store": "pnpm build && node scripts/pack-store.mjs"
   },
   "license": "MIT",
   "devDependencies": {

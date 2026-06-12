@@ -11,7 +11,9 @@ import { isGrouped } from '@/shared/tabs';
 export interface TabsDriver {
   removeTabs(ids: number[]): Promise<void>;
   moveTabs(ids: number[], windowId: number, index: number): Promise<void>;
-  moveGroup(groupId: number, windowId: number, index: number): Promise<void>;
+  /** Reposition a whole group. False when the group was NOT moved (e.g.
+   * dissolved mid-run) — callers must not assume its span afterwards. */
+  moveGroup(groupId: number, windowId: number, index: number): Promise<boolean>;
   /** Re-assert membership of tabs in an existing group (no-op for members). */
   groupTabs(groupId: number, tabIds: number[]): Promise<void>;
   /** Create an empty normal window and return its id. */
@@ -85,13 +87,15 @@ export async function applyPlan(
         members.push(rest[i].id);
         i += 1;
       }
-      await driver.moveGroup(groupId, targetId, index);
+      const moved = await driver.moveGroup(groupId, targetId, index);
       // The group now occupies [index, index + members.length) but keeps its
       // prior internal order. Place sorted member j at index + j: every
       // target is inside the group's span (so the move cannot eject the tab),
       // the already-placed prefix is never disturbed, and the last member
-      // lands in place implicitly.
-      if (members.length > 1) {
+      // lands in place implicitly. Skipped when moveGroup failed: the group's
+      // real span is then unknown, and these per-tab moves would target
+      // out-of-span indices and eject every member they touch.
+      if (moved && members.length > 1) {
         for (let j = 0; j < members.length - 1; j += 1) {
           await driver.moveTabs([members[j]], targetId, index + j);
         }
@@ -148,8 +152,10 @@ export const chromeDriver: TabsDriver = {
   async moveGroup(groupId, windowId, index) {
     try {
       await chrome.tabGroups.move(groupId, { windowId, index });
+      return true;
     } catch {
       // Group may have been dissolved mid-run — skip it.
+      return false;
     }
   },
   async groupTabs(groupId, tabIds) {

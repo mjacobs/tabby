@@ -17,6 +17,7 @@ function fakeDriver() {
     },
     async moveGroup(groupId, windowId, index) {
       calls.push(`group ${groupId} -> w${windowId}@${index}`);
+      return true;
     },
     async groupTabs(groupId, tabIds) {
       calls.push(`regroup ${groupId}: ${tabIds.join(',')}`);
@@ -44,7 +45,7 @@ interface StripTab {
  */
 function stripFake(
   initial: Record<number, StripTab[]>,
-  opts: { ejectOnAnyMove?: boolean } = {},
+  opts: { ejectOnAnyMove?: boolean; failMoveGroup?: boolean } = {},
 ) {
   const windows = new Map<number, StripTab[]>(
     Object.entries(initial).map(([k, v]) => [
@@ -91,6 +92,7 @@ function stripFake(
       }
     },
     async moveGroup(groupId, windowId, index) {
+      if (opts.failMoveGroup) return false; // group stays at its old span
       for (const [winId, tabs] of windows) {
         const members = tabs.filter((t) => t.groupId === groupId);
         if (members.length === 0) continue;
@@ -101,8 +103,9 @@ function stripFake(
         const dest = windows.get(windowId)!;
         const at = index === -1 ? dest.length : Math.min(index, dest.length);
         dest.splice(at, 0, ...members);
-        return;
+        return true;
       }
+      return false;
     },
     async groupTabs(groupId, tabIds) {
       for (const id of tabIds) {
@@ -245,6 +248,30 @@ describe('applyPlan', () => {
     );
 
     await applyPlan(plan, driver);
+    expect(groupOf(g1.id)).toBe(7);
+    expect(groupOf(g2.id)).toBe(7);
+  });
+
+  it('skips the within-group re-sort when moveGroup fails (group span unknown)', async () => {
+    // chromeDriver.moveGroup swallows errors (group dissolved mid-run, saved
+    // groups, etc.). If the group never reached [index, index+size), the
+    // per-tab in-span moves would target out-of-span indices and eject every
+    // member they touch — so a failed moveGroup must skip them entirely.
+    const g1 = tab({ url: 'https://g.com/b', windowId: 2, groupId: 7 });
+    const g2 = tab({ url: 'https://g.com/a', windowId: 2, groupId: 7 });
+    const plan = buildCleanupPlan({
+      windows: [win(1, true, []), win(2, false, [g1, g2])],
+      settings: settings(),
+    });
+
+    const { driver, groupOf, order } = stripFake(
+      { 1: [], 2: [{ id: g1.id, groupId: 7 }, { id: g2.id, groupId: 7 }] },
+      { failMoveGroup: true },
+    );
+
+    await applyPlan(plan, driver);
+    // The group stays intact at its old position, internal order untouched.
+    expect(order(2)).toEqual([g1.id, g2.id]);
     expect(groupOf(g1.id)).toBe(7);
     expect(groupOf(g2.id)).toBe(7);
   });

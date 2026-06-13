@@ -3,7 +3,9 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', '*.config.js'] },
+  // test/browser holds Chrome-injected verification snippets (browser + chrome
+  // globals, run via chrome-devtools-mcp evaluate_script), not buildable source.
+  { ignores: ['dist', 'node_modules', '*.config.js', 'test/browser'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

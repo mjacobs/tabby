@@ -11,3 +11,6 @@ coverage/
 
 # Extension signing key (local only; pins stable extension ID)
 tabby-extension-key.pem
+
+# Local MCP config (machine-specific absolute --load-extension path)
+.mcp.json

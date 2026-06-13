@@ -416,13 +416,7 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
                   isMarked={state.marked.has(item.tab.id)}
                   recommendReasons={recs.get(item.tab.id)}
                   onClick={() => void transport.jumpTo(item.tab.id)}
-                  onToggle={() => {
-                    dispatch({
-                      type: 'move',
-                      delta: item.index - state.cursor,
-                    });
-                    dispatch({ type: 'toggleMark' });
-                  }}
+                  onToggle={() => dispatch({ type: 'toggleMarkId', id: item.tab.id })}
                 />
               ),
             )}

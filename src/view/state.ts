@@ -32,6 +32,7 @@ export type Action =
   | { type: 'move'; delta: number }
   | { type: 'moveTo'; to: 'top' | 'bottom' }
   | { type: 'toggleMark' }
+  | { type: 'toggleMarkId'; id: number }
   | { type: 'markAll' }
   | { type: 'clearMarks' }
   | { type: 'startVisual' }
@@ -138,6 +139,17 @@ export function reduce(state: ReviewUiState, action: Action): ReviewUiState {
       const marked = new Set(state.marked);
       if (marked.has(current.id)) marked.delete(current.id);
       else marked.add(current.id);
+      return { ...state, marked };
+    }
+
+    case 'toggleMarkId': {
+      // Mark a specific tab by id WITHOUT moving the cursor — used by the
+      // mouse path (checkbox / advisory badge click), where hijacking the
+      // keyboard cursor to the clicked row is jarring (kata 49m8). The cursor
+      // is a keyboard-navigation concept; a click shouldn't move it.
+      const marked = new Set(state.marked);
+      if (marked.has(action.id)) marked.delete(action.id);
+      else marked.add(action.id);
       return { ...state, marked };
     }
 

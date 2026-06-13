@@ -41,6 +41,18 @@ describe('review state', () => {
     expect([...s.marked]).toEqual([]);
   });
 
+  it('toggleMarkId marks a specific tab without moving the cursor (kata 49m8)', () => {
+    let s = load('a', 'b', 'c');
+    // cursor stays at 0 even though we mark id 3 (the click/badge path).
+    s = reduce(s, { type: 'toggleMarkId', id: 3 });
+    expect([...s.marked]).toEqual([3]);
+    expect(s.cursor).toBe(0);
+    // toggling the same id again unmarks it; cursor still untouched.
+    s = reduce(s, { type: 'toggleMarkId', id: 3 });
+    expect([...s.marked]).toEqual([]);
+    expect(s.cursor).toBe(0);
+  });
+
   it('marks a visual range', () => {
     let s = load('a', 'b', 'c', 'd');
     s = reduce(s, { type: 'move', delta: 1 }); // cursor at 1

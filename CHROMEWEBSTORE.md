@@ -43,13 +43,13 @@ English
 | Asset | Dimensions | Status | Filename |
 |-------|-----------|--------|----------|
 | Store Icon [REQUIRED] | 128×128 PNG | ✅ Ready | `src/icons/icon128.png` |
-| Screenshot 1 [REQUIRED] | 1280×800 or 640×400 | 🟡 Draft captured¹ | `store-assets/screenshot-1-review.png` |
-| Screenshot 2 [RECOMMENDED] | 1280×800 or 640×400 | 🟡 Draft captured¹ | `store-assets/screenshot-2-sidepanel.png` |
-| Screenshot 3 [RECOMMENDED] | 1280×800 or 640×400 | ⬜ Not created¹ | `store-assets/screenshot-3-options.png` |
-| Screenshot 4 | 1280×800 or 640×400 | ❌ N/A — no records UI page² | `store-assets/screenshot-4-trace.png` |
+| Screenshot 1 [REQUIRED] | 1280×800 | ✅ Ready¹ | `store-assets/screenshot-1-review.png` |
+| Screenshot 2 [RECOMMENDED] | 1280×800 | ✅ Ready¹ | `store-assets/screenshot-2-sidepanel.png` |
+| Screenshot 3 [RECOMMENDED] | 1280×800 | ✅ Ready¹ | `store-assets/screenshot-3-options.png` |
+| Screenshot 4 | — | ❌ N/A — no records UI page² | — |
 | Small Promo Tile [RECOMMENDED] | 440×280 | ⬜ Not created | `store-assets/promo-small.png` |
 
-¹ Reference review-page and side-panel captures exist at `docs/img/review-page.png` and `docs/img/side-panel.png` (used in the README), produced by the repeatable chrome-devtools-mcp harness in `test/browser/`. They are README-sized, not the store's 1280×800/640×400 — re-render at the required dimensions into `store-assets/` before submitting. The same harness can capture the options page (Screenshot 3) on demand.
+¹ Store-dimension assets (1280×800) live in `store-assets/`, captured from the live extension via the `test/browser/` chrome-devtools-mcp harness. **Screenshot 2 is a composite** — Chrome's docked side panel is browser chrome the CDP can't screenshot directly, so it pairs a real page (web.dev) on the left with the panel surface (rendered at panel width via viewport emulation) on the right. The example session reuses the cat-themed tabs from the README; the `catster.com` tab was dropped from these shots because its host serves a Cloudflare interstitial to the automation profile (its title would read "Just a moment…"). Re-shoot anytime by re-running the harness. README-sized versions also live in `docs/img/`.
 
 ² Tabby has **no dedicated records/trace UI page** — the records log is data-only, read via the `getRecords` message or `chrome.storage.local('tabby:records')`. Screenshot 4 as originally scoped isn't capturable unless a records view is built; either drop it or replace it with another angle (e.g. the options "Close suggestions" + "Developer" sections, or the review list mid-keyboard-selection).
 
@@ -172,8 +172,8 @@ This section outlines the steps, gotchas, and effort required to move Tabby from
    Google requires a one-time fee to open a Chrome Developer account. Register at: [Chrome Developer Console](https://chrome.google.com/webstore/devconsole).
 2. **Setup a Public Privacy Policy URL:**
    Even though Tabby collects no data, utilizing permissions like `tabs`, `bookmarks`, and `webNavigation` triggers a mandatory review audit. You must host the privacy policy text provided above (e.g. at `https://mjacobs.github.io/tabby/privacy.html` or a public GitHub Gist) and paste the URL in the console. The repo is now public, so GitHub Pages on `mjacobs/tabby` is the natural host.
-3. **Generate Store Screenshots:**
-   The store requires at least one 1280×800 or 640×400 screenshot. README-sized reference captures of the review page and side panel already exist in `docs/img/` (produced by the `test/browser/` chrome-devtools-mcp harness, which can also shoot the options page); re-render them — and any new angles — at the store's required dimensions into `store-assets/`. Note there is no records/trace page to capture (see Graphics & Assets, note ²). Prepare these using Chrome with normal-sized tabs to ensure a crisp, premium look.
+3. **Generate Store Screenshots:** ✅ Done.
+   Three 1280×800 assets are ready in `store-assets/` (review, side-panel composite, options), captured via the `test/browser/` chrome-devtools-mcp harness — see Graphics & Assets above. There is no records/trace page to capture (note ²). A 440×280 promo tile is still outstanding if you want one.
 4. **Remove Dev "key" from Production Build:**
    * **Crucial Gotcha:** In `manifest.config.ts`, there is a pinned `"key"` field. This key is used in development to keep the extension ID stable (so storage doesn't get wiped on every reload). **Do not include this key in the ZIP uploaded to the store!**
    * Chrome Web Store automatically generates its own public key and signs the package. If you upload a manifest with a hardcoded `"key"` field, Google will either reject it or lock you into that specific keypair.

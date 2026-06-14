@@ -6,6 +6,16 @@ Tabby helps you regain control of your browser. With a single shortcut (`Ctrl+Sh
 
 Tabby is fully private, local-first, and telemetry-free.
 
+## Screenshots
+
+The keyboard-driven review list — tabs consolidated, de-duplicated, and sorted, with an intact tab group and quiet advisory badges (`bookmarked`, `stale login`):
+
+![Tabby's full-page review surface](docs/img/review-page.png)
+
+The same review UI mounted in Chrome's native side panel, for pruning without leaving the page you're on:
+
+<img src="docs/img/side-panel.png" alt="Tabby's side-panel review surface" width="380" />
+
 ---
 
 ## Key Features

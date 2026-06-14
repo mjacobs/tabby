@@ -60,6 +60,11 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
   const [recs, setRecs] = useState<ReadonlyMap<number, RecommendReason[]>>(
     new Map(),
   );
+  // Tab-group titles by group id, so the divider shows the group's name rather
+  // than its opaque numeric id. Refreshed alongside the live tab reconcile.
+  const [groupTitles, setGroupTitles] = useState<ReadonlyMap<number, string>>(
+    new Map(),
+  );
 
   const filterRef = useRef<HTMLInputElement>(null);
   // Virtualization: the scroll viewport + its current scroll/height drive which
@@ -112,7 +117,11 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
     const windowId = windowIdRef.current;
     const settings = settingsRef.current;
     if (windowId == null || settings == null) return;
-    const tabs = await transport.queryTabs(windowId);
+    const [tabs, groups] = await Promise.all([
+      transport.queryTabs(windowId),
+      transport.queryGroups(windowId),
+    ]);
+    setGroupTitles(new Map(groups.map((g) => [g.id, g.title])));
     dispatch({ type: 'sync', tabs: sortTabs(tabs, settings) });
   }, [transport]);
 
@@ -398,6 +407,7 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
                 <GroupHeader
                   key={`group-${item.groupId}`}
                   groupId={item.groupId}
+                  title={groupTitles.get(item.groupId)}
                   tabs={state.tabs}
                   marked={state.marked}
                   collapsed={state.collapsed.has(item.groupId)}
@@ -440,12 +450,14 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
 /** Collapsible header for a tab group: marker + name + tab / to-close counts. */
 function GroupHeader({
   groupId,
+  title,
   tabs,
   marked,
   collapsed,
   onToggle,
 }: {
   groupId: number;
+  title?: string;
   tabs: TabInfo[];
   marked: Set<number>;
   collapsed: boolean;
@@ -454,9 +466,12 @@ function GroupHeader({
   // Counts are over ALL members (collapse is display-only — totals never change).
   const members = tabs.filter((t) => isGrouped(t) && t.groupId === groupId);
   const toClose = members.filter((t) => marked.has(t.id)).length;
+  // Show the group's name; Chrome lets a group be untitled, so fall back to a
+  // generic label rather than leaking the opaque numeric group id.
+  const name = title?.trim() ? title : 'Group';
   return (
     <li class="group-divider" onClick={onToggle}>
-      <span class="group-marker">{collapsed ? '▸' : '▾'}</span> group {groupId}{' '}
+      <span class="group-marker">{collapsed ? '▸' : '▾'}</span> {name}{' '}
       <span class="group-counts">
         {members.length} tabs · {toClose} to close
       </span>

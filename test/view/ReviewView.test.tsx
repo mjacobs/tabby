@@ -15,6 +15,7 @@ afterEach(cleanup);
 function makeTransport(
   tabs: TabInfo[],
   recommendations: Array<{ tabId: number; reasons: RecommendReason[] }> = [],
+  groupTitles: Record<number, string> = {},
 ) {
   const calls = { commitClose: [] as number[][], jumpTo: [] as number[], undo: 0 };
   // Mutable so a test can swap in a fresh stash and fire onReviewUpdated.
@@ -34,6 +35,16 @@ function makeTransport(
     getReview: async () => review,
     getSettings: async () => DEFAULT_SETTINGS,
     queryTabs: async () => liveTabs,
+    queryGroups: async () => {
+      const ids = [
+        ...new Set(
+          liveTabs
+            .filter((t) => t.groupId != null && t.groupId !== -1)
+            .map((t) => t.groupId as number),
+        ),
+      ];
+      return ids.map((id) => ({ id, title: groupTitles[id] ?? '' }));
+    },
     jumpTo: async (id) => {
       calls.jumpTo.push(id);
     },
@@ -198,11 +209,15 @@ describe('ReviewView', () => {
   });
 
   it('collapses a group: hides members, keeps the header and its counts', async () => {
-    const { transport } = makeTransport([
-      tab({ id: 1, url: 'https://a.com', title: 'Alpha', groupId: 7 }),
-      tab({ id: 2, url: 'https://b.com', title: 'Beta', groupId: 7 }),
-      tab({ id: 3, url: 'https://c.com', title: 'Gamma' }),
-    ]);
+    const { transport } = makeTransport(
+      [
+        tab({ id: 1, url: 'https://a.com', title: 'Alpha', groupId: 7 }),
+        tab({ id: 2, url: 'https://b.com', title: 'Beta', groupId: 7 }),
+        tab({ id: 3, url: 'https://c.com', title: 'Gamma' }),
+      ],
+      [],
+      { 7: 'Docs' },
+    );
     render(<ReviewView transport={transport} />);
     await screen.findByText('Alpha');
 
@@ -216,26 +231,31 @@ describe('ReviewView', () => {
     expect(screen.queryByText('Beta')).toBeNull();
     expect(screen.getByText('Gamma')).toBeTruthy();
 
-    // The header survives and its totals are unchanged (2 tabs / 1 to close).
+    // The header survives, shows the group's name, and its totals are unchanged.
+    expect(screen.getByText('Docs')).toBeTruthy();
     expect(screen.getByText(/2 tabs · 1 to close/)).toBeTruthy();
     // The mark on a hidden row is preserved (commit button still shows it).
     expect(screen.getByText('Close 1')).toBeTruthy();
 
     // Expanding (via the header — the cursor is no longer on a member) brings
     // the members and the surviving mark back.
-    screen.getByText(/group 7/).click();
+    screen.getByText('Docs').click();
     expect(await screen.findByText('Alpha')).toBeTruthy();
     expect(screen.getByText('Beta')).toBeTruthy();
     expect(screen.getByText('Close 1')).toBeTruthy();
   });
 
   it('clicking a group header toggles collapse', async () => {
-    const { transport } = makeTransport([
-      tab({ id: 1, url: 'https://a.com', title: 'Alpha', groupId: 7 }),
-      tab({ id: 2, url: 'https://b.com', title: 'Beta', groupId: 7 }),
-    ]);
+    const { transport } = makeTransport(
+      [
+        tab({ id: 1, url: 'https://a.com', title: 'Alpha', groupId: 7 }),
+        tab({ id: 2, url: 'https://b.com', title: 'Beta', groupId: 7 }),
+      ],
+      [],
+      { 7: 'Docs' },
+    );
     render(<ReviewView transport={transport} />);
-    const header = await screen.findByText(/group 7/);
+    const header = await screen.findByText('Docs');
 
     header.click();
     await waitFor(() => expect(screen.queryByText('Alpha')).toBeNull());
@@ -367,7 +387,8 @@ describe('ReviewView', () => {
     // header survives.
     press('z');
     await waitFor(() => expect(screen.queryByText('Tab 1')).toBeNull());
-    expect(screen.getByText(/group 7/)).toBeTruthy();
+    // Untitled group falls back to a generic label (never the numeric id).
+    expect(screen.getByText('Group')).toBeTruthy();
 
     // G jumps the cursor to the last visible tab (id 500) and scrolls it into
     // the window despite the collapsed group above shifting rendered indices.

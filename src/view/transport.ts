@@ -17,6 +17,8 @@ export interface ReviewTransport {
   getSettings(): Promise<Settings>;
   /** Live tabs of a window, excluding Tabby's own review page. */
   queryTabs(windowId: number): Promise<TabInfo[]>;
+  /** Titles of the window's tab groups, by group id (empty string = untitled). */
+  queryGroups(windowId: number): Promise<Array<{ id: number; title: string }>>;
   jumpTo(tabId: number): Promise<void>;
   /** Close the given tabs; returns how many were closed. */
   commitClose(tabIds: number[]): Promise<number>;
@@ -47,6 +49,14 @@ export const chromeTransport: ReviewTransport = {
     return tabs
       .filter((t) => t.id != null && (!t.url || !t.url.startsWith(extensionPrefix)))
       .map(tabInfoFromChromeTab);
+  },
+  async queryGroups(windowId) {
+    try {
+      const groups = (await chrome.tabGroups?.query({ windowId })) ?? [];
+      return groups.map((g) => ({ id: g.id, title: g.title ?? '' }));
+    } catch {
+      return [];
+    }
   },
   async jumpTo(tabId) {
     await sendRequest({ type: 'jumpTo', tabId });

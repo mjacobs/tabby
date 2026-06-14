@@ -2,7 +2,7 @@
 
 This document serves as the single source of truth for Tabby's Chrome Web Store listing. It contains all metadata, permissions justifications, privacy disclosures, and version history needed to submit Tabby to the Chrome Developer Dashboard.
 
-> Last Updated: 2026-06-11
+> Last Updated: 2026-06-13
 
 ---
 
@@ -43,17 +43,21 @@ English
 | Asset | Dimensions | Status | Filename |
 |-------|-----------|--------|----------|
 | Store Icon [REQUIRED] | 128×128 PNG | ✅ Ready | `src/icons/icon128.png` |
-| Screenshot 1 [REQUIRED] | 1280×800 or 640×400 | ⬜ Not created | `store-assets/screenshot-1-review.png` |
-| Screenshot 2 [RECOMMENDED] | 1280×800 or 640×400 | ⬜ Not created | `store-assets/screenshot-2-sidepanel.png` |
-| Screenshot 3 [RECOMMENDED] | 1280×800 or 640×400 | ⬜ Not created | `store-assets/screenshot-3-options.png` |
-| Screenshot 4 | 1280×800 or 640×400 | ⬜ Not created | `store-assets/screenshot-4-trace.png` |
+| Screenshot 1 [REQUIRED] | 1280×800 or 640×400 | 🟡 Draft captured¹ | `store-assets/screenshot-1-review.png` |
+| Screenshot 2 [RECOMMENDED] | 1280×800 or 640×400 | 🟡 Draft captured¹ | `store-assets/screenshot-2-sidepanel.png` |
+| Screenshot 3 [RECOMMENDED] | 1280×800 or 640×400 | ⬜ Not created¹ | `store-assets/screenshot-3-options.png` |
+| Screenshot 4 | 1280×800 or 640×400 | ❌ N/A — no records UI page² | `store-assets/screenshot-4-trace.png` |
 | Small Promo Tile [RECOMMENDED] | 440×280 | ⬜ Not created | `store-assets/promo-small.png` |
 
+¹ Reference review-page and side-panel captures exist at `docs/img/review-page.png` and `docs/img/side-panel.png` (used in the README), produced by the repeatable chrome-devtools-mcp harness in `test/browser/`. They are README-sized, not the store's 1280×800/640×400 — re-render at the required dimensions into `store-assets/` before submitting. The same harness can capture the options page (Screenshot 3) on demand.
+
+² Tabby has **no dedicated records/trace UI page** — the records log is data-only, read via the `getRecords` message or `chrome.storage.local('tabby:records')`. Screenshot 4 as originally scoped isn't capturable unless a records view is built; either drop it or replace it with another angle (e.g. the options "Close suggestions" + "Developer" sections, or the review list mid-keyboard-selection).
+
 ### Screenshot Notes
-* **Screenshot 1 (Review Page):** Capture the full `review.html` surface populated with clustered, sorted tab entries, showing active group headers, custom badges, and the keyboard cheatsheet overlay (`?`) partially open.
+* **Screenshot 1 (Review Page):** Capture the full `review.html` surface populated with clustered, sorted tab entries, showing active group headers (now labelled by group **name**, not id), advisory badges, and the keyboard cheatsheet overlay (`?`) partially open.
 * **Screenshot 2 (Side Panel):** Capture the side panel open alongside a standard website (e.g., Google or GitHub), demonstrating how a user can prune tabs side-by-side without leaving their webpage.
 * **Screenshot 3 (Options/Settings):** Capture the options page showing query parameter normalization switches, custom tracking-parameter lists, and preferred review surface selections.
-* **Screenshot 4 (Records/Trace):** Capture the records page showing a summary log of closed tabs and the opt-in navigation trace trail showing how tabs clustered.
+* **Screenshot 4:** No records page exists (see ² above) — repurpose this slot or omit it.
 
 ---
 
@@ -143,12 +147,10 @@ Matthew Jacobs
 [mjacobs@apache.org] (or chosen developer email)
 
 **Support URL / Email** [RECOMMENDED]
-https://github.com/mjacobs/tabby/issues — pending: the repo currently lives on
-a private git server and has not been published to GitHub yet (kata v6n4 gates
-flipping it public).
+https://github.com/mjacobs/tabby/issues — live (repo published 2026-06-13).
 
 **Homepage URL** [RECOMMENDED]
-https://github.com/mjacobs/tabby (pending, see above)
+https://github.com/mjacobs/tabby
 
 ---
 
@@ -169,9 +171,9 @@ This section outlines the steps, gotchas, and effort required to move Tabby from
 1. **One-Time Developer Registration ($5 USD):**
    Google requires a one-time fee to open a Chrome Developer account. Register at: [Chrome Developer Console](https://chrome.google.com/webstore/devconsole).
 2. **Setup a Public Privacy Policy URL:**
-   Even though Tabby collects no data, utilizing permissions like `tabs`, `bookmarks`, and `webNavigation` triggers a mandatory review audit. You must host the privacy policy text provided above (e.g. at `https://mjacobs.github.io/tabby/privacy.html` or a public GitHub Gist) and paste the URL in the console.
+   Even though Tabby collects no data, utilizing permissions like `tabs`, `bookmarks`, and `webNavigation` triggers a mandatory review audit. You must host the privacy policy text provided above (e.g. at `https://mjacobs.github.io/tabby/privacy.html` or a public GitHub Gist) and paste the URL in the console. The repo is now public, so GitHub Pages on `mjacobs/tabby` is the natural host.
 3. **Generate Store Screenshots:**
-   The store requires at least one 1280×800 or 640×400 screenshot. Prepare these using Chrome in a clean profile with normal-sized tabs to ensure a crisp, premium look.
+   The store requires at least one 1280×800 or 640×400 screenshot. README-sized reference captures of the review page and side panel already exist in `docs/img/` (produced by the `test/browser/` chrome-devtools-mcp harness, which can also shoot the options page); re-render them — and any new angles — at the store's required dimensions into `store-assets/`. Note there is no records/trace page to capture (see Graphics & Assets, note ²). Prepare these using Chrome with normal-sized tabs to ensure a crisp, premium look.
 4. **Remove Dev "key" from Production Build:**
    * **Crucial Gotcha:** In `manifest.config.ts`, there is a pinned `"key"` field. This key is used in development to keep the extension ID stable (so storage doesn't get wiped on every reload). **Do not include this key in the ZIP uploaded to the store!**
    * Chrome Web Store automatically generates its own public key and signs the package. If you upload a manifest with a hardcoded `"key"` field, Google will either reject it or lock you into that specific keypair.

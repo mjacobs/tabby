@@ -8,7 +8,11 @@ Tabby is fully private, local-first, and telemetry-free.
 
 ## Screenshots
 
-The keyboard-driven review list after a cleanup — tabs consolidated, de-duplicated, and sorted, with an intact tab group and quiet advisory badges (`bookmarked`, `stale login`). The grouped tabs are research on the maintainer's cat, Leo, a silver tabby British shorthair:
+A cleanup in the keyboard-driven review — collapse a group with `z`, filter with `/`, mark tabs with `x`, close with `Ctrl+Enter`, and undo with `u`:
+
+![Tabby cleanup demo](docs/img/review-demo.gif)
+
+The full-page review surface — tabs consolidated, de-duplicated, and sorted, with an intact tab group and quiet advisory badges (`bookmarked`, `stale login`). The grouped tabs are research on the maintainer's cat, Leo, a silver tabby British shorthair:
 
 ![Tabby's full-page review surface](docs/img/review-page.png)
 

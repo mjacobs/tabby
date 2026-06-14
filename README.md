@@ -1,4 +1,4 @@
-# Tabby 🐾
+# Tabby
 
 A fast, keyboard-driven Chrome extension for consolidating, sorting, and pruning your tabs. 
 
@@ -8,7 +8,7 @@ Tabby is fully private, local-first, and telemetry-free.
 
 ## Screenshots
 
-The keyboard-driven review list — tabs consolidated, de-duplicated, and sorted, with an intact tab group and quiet advisory badges (`bookmarked`, `stale login`):
+The keyboard-driven review list after a cleanup — tabs consolidated, de-duplicated, and sorted, with an intact tab group and quiet advisory badges (`bookmarked`, `stale login`). The grouped tabs are research on the maintainer's cat, Leo, a silver tabby British shorthair:
 
 ![Tabby's full-page review surface](docs/img/review-page.png)
 
@@ -20,13 +20,13 @@ The same review UI mounted in Chrome's native side panel, for pruning without le
 
 ## Key Features
 
-### 🌪️ The Cleanup Pipeline
+### The Cleanup Pipeline
 Tabby's pipeline is divided into three distinct automated stages before presenting the review:
 1. **Consolidation:** Gathers tabs from all normal windows into the currently focused window, moving tab groups as intact units.
 2. **Deduplication:** Merges identical pages (with customizable query parameter stripping and path normalizations) to auto-close exact duplicates while protecting your active, pinned, or audible tabs.
 3. **Sorting:** Organizes remaining tabs lexicographically (Host → Path → Query) to put similar topics together, while maintaining tab group contiguity and protecting pinned tabs at the front.
 
-### ⌨️ Keyboard-Driven Review
+### Keyboard-Driven Review
 No mouse required. Tabby provides an extremely fast, vim-inspired keymap to review and prune your tabs:
 - `j` / `k` — Move the cursor down / up
 - `g` / `G` — Jump to the top / bottom of the list
@@ -41,23 +41,23 @@ No mouse required. Tabby provides an extremely fast, vim-inspired keymap to revi
 - `?` — Toggle the keyboard shortcut help cheatsheet
 - `Esc` — Dismiss overlays, visual mode, or active filters
 
-### 📱 Dual Review Surfaces
+### Dual Review Surfaces
 Tabby's entire interface is built host-agnostically, allowing you to choose how you want to review your tabs from the Options page:
 * **Full Page (Default):** Opens in a dedicated full-browser tab (`review.html`) for wide, clear, and comprehensive list management.
 * **Side Panel:** Mounts the exact same UI in Chrome's native side panel (`sidepanel.html`) for a lightweight, side-by-side pruning experience that won't take you away from your current web page. *Requires optional `sidePanel` permission requested on opt-in.*
 
-### 💡 Quiet Close Suggestions
+### Quiet Close Suggestions
 Tabby highlights tabs that are excellent candidates for closure using quiet, dashed hint badges (e.g., duplicated pages, empty/blank tabs, or matching specific staled-state signals). Clicking a badge marks that tab for closing on commit, keeping decisions explicitly in your control.
 
-### 🛡️ Robust Group & Pinned Protection
+### Robust Group & Pinned Protection
 * **Tab Groups:** Keeps your existing tab groups intact. If grouped tabs are moved during consolidation, they move as a whole unit, preventing group dissolution.
 * **Audible & Pinned:** Pinned tabs and tabs playing audio are never auto-closed or moved unless explicitly requested or configured in options.
 * **Stranded Auth Warning:** Highlights pages that may have expired sessions or stranded authentication sequences.
 
-### 📜 Local Records Log & Navigation Trace
+### Local Records Log & Navigation Trace
 Tabby includes a local, telemetry-free Records surface. It tracks a log of your recommendations and close history, and features an opt-in **navigation trace mode** to help you inspect how you arrived at your open tabs and audit your tab patterns over time.
 
-### ⚙️ Deep Configuration Options
+### Deep Configuration Options
 Fine-tune Tabby's core behavior via the Options page:
 - **Normalization:** Configure trailing-slash stripping, WWW matching, and exact query parameter blocking.
 - **Custom Tracking Parameters:** Edit the blocklist of tracking query parameters (e.g., `utm_*`, `gclid`).
@@ -113,7 +113,7 @@ graph TD
 ```bash
 pnpm dev        # Starts Vite dev server with Hot Module Replacement (CRXJS)
 pnpm build      # Compiles and builds production assets to dist/
-pnpm test       # Runs the Vitest test suite (180 unit tests)
+pnpm test       # Runs the Vitest test suite (184 unit tests)
 pnpm typecheck  # Runs TypeScript compiler diagnostics
 pnpm lint       # Enforces ESLint and Prettier standards
 pnpm format     # Re-formats code files with Prettier

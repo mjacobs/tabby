@@ -22,6 +22,10 @@ describe('keymap (navigation mode)', () => {
     expect(nav('A')).toEqual({ type: 'clearMarks' });
   });
 
+  it('maps shift+S to stash marked tabs', () => {
+    expect(nav('S')).toEqual({ type: 'stash' });
+  });
+
   it('distinguishes jump from commit by modifier', () => {
     expect(nav('Enter')).toEqual({ type: 'jump' });
     expect(keymap({ key: 'Enter', metaKey: true }, false)).toEqual({

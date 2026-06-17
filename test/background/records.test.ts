@@ -5,6 +5,7 @@ import {
   appendRecords,
   buildCloseRecord,
   buildRecommendationRecords,
+  buildStashRecord,
   buildUndoRecord,
   clearRecords,
   getRecords,
@@ -61,6 +62,16 @@ describe('record builders (pure)', () => {
     expect(buildCloseRecord(closed, 7)).toEqual({
       at: 7,
       kind: 'close',
+      tabIds: [3, 4],
+      urls: ['https://x.com', 'https://y.com'],
+    });
+  });
+
+  it('builds a stash record with ids and urls', () => {
+    const stashed = [tab({ id: 3, url: 'https://x.com' }), tab({ id: 4, url: 'https://y.com' })];
+    expect(buildStashRecord(stashed, 7)).toEqual({
+      at: 7,
+      kind: 'stash',
       tabIds: [3, 4],
       urls: ['https://x.com', 'https://y.com'],
     });

@@ -10,10 +10,12 @@ import {
   appendRecords,
   buildCloseRecord,
   buildRecommendationRecords,
+  buildStashRecord,
   buildUndoRecord,
   clearRecords,
   getRecords,
 } from '@/background/records';
+import { stashTabs } from '@/background/stash';
 import { recordClosed, undoLast } from '@/background/undo';
 import { bumpUsage, clearUsage, getUsage } from '@/background/usage';
 import { coerceSettings, loadSettings, saveSettings } from '@/shared/settings';
@@ -32,10 +34,8 @@ async function jumpTo(tabId: number): Promise<ViewResponse['jumpTo']> {
   }
 }
 
-async function commitClose(
-  tabIds: number[],
-): Promise<ViewResponse['commitClose']> {
-  // Capture tab info for undo before removing (the tabs still exist here).
+/** Capture TabInfo for the given ids while the tabs still exist (for undo). */
+async function gatherTabInfos(tabIds: number[]): Promise<TabInfo[]> {
   const infos: TabInfo[] = [];
   for (const id of tabIds) {
     try {
@@ -44,19 +44,51 @@ async function commitClose(
       // Already gone — nothing to record.
     }
   }
+  return infos;
+}
+
+/**
+ * Close `tabIds` and record the batch for undo. `infos` must be the TabInfo
+ * captured BEFORE removal (so urls/titles survive); recordClosed runs after the
+ * removal so the closed tabs are in chrome.sessions and undo can restore them
+ * with history (see undo.ts).
+ */
+async function closeWithUndo(
+  tabIds: number[],
+  infos: TabInfo[],
+): Promise<void> {
   try {
     await chrome.tabs.remove(tabIds);
   } catch {
     // Best-effort; some ids may already be closed.
   }
-  // Record after removal so the closed tabs are in chrome.sessions and undo can
-  // restore them with history (see undo.ts).
   await recordClosed(infos);
+}
+
+async function commitClose(
+  tabIds: number[],
+): Promise<ViewResponse['commitClose']> {
+  const infos = await gatherTabInfos(tabIds);
+  await closeWithUndo(tabIds, infos);
   await appendRecords([buildCloseRecord(infos, Date.now())]);
   await logState('commitClose');
   // Fire-and-forget local tally; never let counting break the close (g6gb).
   void bumpUsage('tabsClosed', infos.length).catch(() => {});
   return { closed: infos.length };
+}
+
+async function stashClose(
+  tabIds: number[],
+): Promise<ViewResponse['stashClose']> {
+  const infos = await gatherTabInfos(tabIds);
+  // Save to the bookmark stash first, then close through the normal undo path
+  // so the stashed tabs are persisted AND still restorable.
+  const { normalize } = await loadSettings();
+  const stashed = await stashTabs(infos, normalize);
+  await closeWithUndo(tabIds, infos);
+  await appendRecords([buildStashRecord(infos, Date.now())]);
+  await logState('stashClose');
+  return { stashed, closed: infos.length };
 }
 
 async function closeEmptyWindows(
@@ -114,6 +146,8 @@ async function dispatch(msg: ViewRequest): Promise<unknown> {
       return jumpTo(msg.tabId);
     case 'commitClose':
       return commitClose(msg.tabIds);
+    case 'stashClose':
+      return stashClose(msg.tabIds);
     case 'undo': {
       const restored = await undoLast();
       await appendRecords([buildUndoRecord(restored, Date.now())]);

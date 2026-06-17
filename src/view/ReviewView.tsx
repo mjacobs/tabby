@@ -45,6 +45,7 @@ const HELP: [string, string][] = [
   ['z', 'collapse / expand group'],
   ['enter', 'jump to tab'],
   ['⌘/ctrl + enter', 'close marked tabs'],
+  ['shift + S', 'stash marked tabs (save + close)'],
   ['u', 'undo last close'],
   ['?', 'toggle this help'],
 ];
@@ -267,6 +268,17 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
         const closed = await transport.commitClose(ids);
         dispatch({ type: 'removeTabs', ids });
         setToast(`Closed ${closed}. Press u to undo.`);
+        return;
+      }
+      case 'stash': {
+        const ids = [...stateRef.current.marked];
+        if (ids.length === 0) {
+          setToast('Nothing marked.');
+          return;
+        }
+        const { stashed, closed } = await transport.stashClose(ids);
+        dispatch({ type: 'removeTabs', ids });
+        setToast(`Stashed ${stashed}, closed ${closed}. Press u to undo.`);
         return;
       }
       case 'undo': {

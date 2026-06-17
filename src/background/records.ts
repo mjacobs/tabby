@@ -92,6 +92,16 @@ export function buildCloseRecord(closed: TabInfo[], at: number): RecordEntry {
   };
 }
 
+/** A single 'stash' entry with the stashed tabs' ids and urls (2by6). PURE. */
+export function buildStashRecord(stashed: TabInfo[], at: number): RecordEntry {
+  return {
+    at,
+    kind: 'stash',
+    tabIds: stashed.map((t) => t.id),
+    urls: stashed.map((t) => t.url),
+  };
+}
+
 /** A single 'undo' entry with how many tabs were restored. PURE. */
 export function buildUndoRecord(restored: number, at: number): RecordEntry {
   return { at, kind: 'undo', restored };

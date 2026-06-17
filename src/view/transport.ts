@@ -22,6 +22,11 @@ export interface ReviewTransport {
   jumpTo(tabId: number): Promise<void>;
   /** Close the given tabs; returns how many were closed. */
   commitClose(tabIds: number[]): Promise<number>;
+  /**
+   * Stash the given tabs to the "Tabby Stash" bookmark folder, then close them
+   * (still undoable). Returns how many were stashed and how many closed (2by6).
+   */
+  stashClose(tabIds: number[]): Promise<{ stashed: number; closed: number }>;
   /** Advisory close-recommendation flags for the given tabs (kata 9kb5). */
   getRecommendations(tabs: TabInfo[]): Promise<Recommendation[]>;
   /** Restore the last closed batch; returns how many reopened. */
@@ -63,6 +68,9 @@ export const chromeTransport: ReviewTransport = {
   },
   async commitClose(tabIds) {
     return (await sendRequest({ type: 'commitClose', tabIds })).closed;
+  },
+  async stashClose(tabIds) {
+    return sendRequest({ type: 'stashClose', tabIds });
   },
   async getRecommendations(tabs) {
     return (await sendRequest({ type: 'getRecommendations', tabs }))

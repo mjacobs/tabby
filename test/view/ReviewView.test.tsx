@@ -17,7 +17,12 @@ function makeTransport(
   recommendations: Array<{ tabId: number; reasons: RecommendReason[] }> = [],
   groupTitles: Record<number, string> = {},
 ) {
-  const calls = { commitClose: [] as number[][], jumpTo: [] as number[], undo: 0 };
+  const calls = {
+    commitClose: [] as number[][],
+    stashClose: [] as number[][],
+    jumpTo: [] as number[],
+    undo: 0,
+  };
   // Mutable so a test can swap in a fresh stash and fire onReviewUpdated.
   const review: ReviewState = {
     reviewTabs: tabs,
@@ -51,6 +56,10 @@ function makeTransport(
     commitClose: async (ids) => {
       calls.commitClose.push(ids);
       return ids.length;
+    },
+    stashClose: async (ids) => {
+      calls.stashClose.push(ids);
+      return { stashed: ids.length, closed: ids.length };
     },
     undo: async () => {
       calls.undo++;
@@ -120,6 +129,26 @@ describe('ReviewView', () => {
     // The committed row is removed from the list.
     await waitFor(() => expect(screen.queryByText('Alpha')).toBeNull());
     expect(screen.getByText('Beta')).toBeTruthy();
+  });
+
+  it('stashes the marked tabs on shift+S and removes them from the list', async () => {
+    const { transport, calls } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+    ]);
+    render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    press('x'); // mark row under cursor (id 1)
+    await screen.findByText('Close 1');
+
+    press('S'); // shift+S: stash marked
+    await waitFor(() => expect(calls.stashClose).toEqual([[1]]));
+    // Stash closes too, so the stashed row leaves the list; nothing was sent
+    // through the plain close path.
+    await waitFor(() => expect(screen.queryByText('Alpha')).toBeNull());
+    expect(screen.getByText('Beta')).toBeTruthy();
+    expect(calls.commitClose).toEqual([]);
   });
 
   it('moves the cursor and marks the second row', async () => {

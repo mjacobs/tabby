@@ -77,6 +77,7 @@ export interface StateDump {
 export type RecordEntry = { at: number } & (
   | { kind: 'recommendation'; tabId: number; url: string; reasons: string[] }
   | { kind: 'close'; tabIds: number[]; urls: string[] }
+  | { kind: 'stash'; tabIds: number[]; urls: string[] }
   | { kind: 'undo'; restored: number }
   | {
       kind: 'nav';
@@ -102,6 +103,9 @@ export type ViewRequest =
   | { type: 'getReview' }
   | { type: 'jumpTo'; tabId: number }
   | { type: 'commitClose'; tabIds: number[] }
+  // Stash + close (2by6) — save the marked tabs to the "Tabby Stash" bookmark
+  // folder, then close them through the normal close+undo path.
+  | { type: 'stashClose'; tabIds: number[] }
   | { type: 'undo' }
   | { type: 'closeEmptyWindows'; windowIds: number[] }
   // Control surface (t8k5) — lets a script/agent drive Tabby without the UI.
@@ -125,6 +129,7 @@ export interface ViewResponse {
   getReview: ReviewState | null;
   jumpTo: { ok: boolean };
   commitClose: { closed: number };
+  stashClose: { stashed: number; closed: number };
   undo: { restored: number };
   closeEmptyWindows: { closed: number };
   runCleanup: { ok: boolean };

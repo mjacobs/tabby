@@ -9,6 +9,7 @@ export type Intent =
   | Action
   | { type: 'jump' }
   | { type: 'commit' }
+  | { type: 'stash' }
   | { type: 'undo' }
   | { type: 'focusFilter' };
 
@@ -103,6 +104,9 @@ export function createKeymap(
         return { type: 'markAll' };
       case 'A':
         return { type: 'clearMarks' };
+      case 'S':
+        // shift+S: stash the marked tabs (save to bookmarks, then close) (2by6).
+        return { type: 'stash' };
       case '/':
         return { type: 'focusFilter' };
       case 'u':

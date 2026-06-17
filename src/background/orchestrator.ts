@@ -8,6 +8,7 @@ import { stashReview } from '@/background/reviewStore';
 import { logState } from '@/background/stateLog';
 import { broadcast } from '@/shared/messages';
 import { recordClosed } from '@/background/undo';
+import { bumpUsage } from '@/background/usage';
 import { loadSettings } from '@/shared/settings';
 import type { TabInfo } from '@/shared/types';
 
@@ -84,6 +85,8 @@ export interface RunCleanupOptions {
 
 /** Run the full consolidate → dedup → sort pipeline, then open the review. */
 export async function runCleanup(opts: RunCleanupOptions = {}): Promise<void> {
+  // Fire-and-forget local tally; never let counting break a cleanup (g6gb).
+  void bumpUsage('cleanupRun').catch(() => {});
   const settings = await loadSettings();
   const windows = await snapshotWindows();
   await logState('orchestrator:before', { windows, settings });
@@ -121,6 +124,11 @@ export async function runCleanup(opts: RunCleanupOptions = {}): Promise<void> {
 
   const wantSidePanel =
     settings.preferredSurface === 'sidepanel' && (await hasSidePanel());
-  if (wantSidePanel && (await openSidePanel(opts.windowId))) return;
+  if (wantSidePanel && (await openSidePanel(opts.windowId))) {
+    // Tally the surface that actually opened (g6gb); side panel won here.
+    void bumpUsage('surface.sidepanel').catch(() => {});
+    return;
+  }
+  void bumpUsage('surface.page').catch(() => {});
   await openReviewPage();
 }

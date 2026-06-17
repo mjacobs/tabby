@@ -15,6 +15,8 @@ import type {
   ReviewSurface,
   Settings,
 } from '@/shared/types';
+import { sendRequest } from '@/shared/messages';
+import type { UsageCounts } from '@/shared/messages';
 import '@/options/options.css';
 
 function Options() {
@@ -263,6 +265,13 @@ function Options() {
       </Section>
 
       <Section
+        title="Usage"
+        desc="How often Tabby's actions have run on this machine, to help tune future defaults."
+      >
+        <UsageSection />
+      </Section>
+
+      <Section
         title="Backup & restore"
         desc="Export your settings to a JSON file, or import one."
       >
@@ -297,6 +306,53 @@ function Options() {
         </span>
       </footer>
     </main>
+  );
+}
+
+/**
+ * Read-only view of the local, telemetry-free usage counters (g6gb). Loads via
+ * the getUsage message and lists each event's count; "Reset counts" clears
+ * them. Purely local — these numbers are never sent anywhere.
+ */
+function UsageSection() {
+  const [counts, setCounts] = useState<UsageCounts | null>(null);
+
+  function refresh() {
+    void sendRequest({ type: 'getUsage' }).then((r) => setCounts(r.counts));
+  }
+
+  useEffect(refresh, []);
+
+  async function reset() {
+    await sendRequest({ type: 'clearUsage' });
+    refresh();
+  }
+
+  if (!counts) return <p class="note">Loading…</p>;
+
+  const entries = Object.entries(counts).sort(([a], [b]) => a.localeCompare(b));
+
+  return (
+    <>
+      {entries.length === 0 ? (
+        <p class="note">No actions counted yet.</p>
+      ) : (
+        <ul class="usage">
+          {entries.map(([event, n]) => (
+            <li key={event}>
+              <code>{event}</code>
+              <span>{n}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div class="radio-group">
+        <button class="reset" onClick={() => void reset()}>
+          Reset counts
+        </button>
+      </div>
+      <p class="note">Purely local — nothing is ever sent anywhere.</p>
+    </>
   );
 }
 

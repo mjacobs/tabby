@@ -15,6 +15,7 @@ import {
   getRecords,
 } from '@/background/records';
 import { recordClosed, undoLast } from '@/background/undo';
+import { bumpUsage, clearUsage, getUsage } from '@/background/usage';
 import { coerceSettings, loadSettings, saveSettings } from '@/shared/settings';
 import type { TabInfo } from '@/shared/types';
 import type { ViewRequest, ViewResponse } from '@/shared/messages';
@@ -53,6 +54,8 @@ async function commitClose(
   await recordClosed(infos);
   await appendRecords([buildCloseRecord(infos, Date.now())]);
   await logState('commitClose');
+  // Fire-and-forget local tally; never let counting break the close (g6gb).
+  void bumpUsage('tabsClosed', infos.length).catch(() => {});
   return { closed: infos.length };
 }
 
@@ -96,6 +99,10 @@ async function getRecommendations(
     options: settings.recommend,
   });
   await appendRecords(buildRecommendationRecords(recommendations, tabs, Date.now()));
+  // Fire-and-forget local tally: one 'shown' per run, plus the flagged count
+  // (a no-op write when nothing was flagged). Never breaks the request (g6gb).
+  void bumpUsage('recommendationsShown').catch(() => {});
+  void bumpUsage('recommendationsFlagged', recommendations.length).catch(() => {});
   return { recommendations };
 }
 
@@ -111,6 +118,8 @@ async function dispatch(msg: ViewRequest): Promise<unknown> {
       const restored = await undoLast();
       await appendRecords([buildUndoRecord(restored, Date.now())]);
       await logState('undo');
+      // Fire-and-forget local tally; never let counting break the undo (g6gb).
+      void bumpUsage('undo').catch(() => {});
       return { restored };
     }
     case 'closeEmptyWindows':
@@ -130,6 +139,11 @@ async function dispatch(msg: ViewRequest): Promise<unknown> {
       return { records: await getRecords() };
     case 'clearRecords':
       await clearRecords();
+      return { ok: true };
+    case 'getUsage':
+      return { counts: await getUsage() };
+    case 'clearUsage':
+      await clearUsage();
       return { ok: true };
   }
 }

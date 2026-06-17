@@ -88,6 +88,15 @@ export type RecordEntry = { at: number } & (
     }
 );
 
+// --- Usage-counts types (g6gb) — pure data, kept here so messages.ts stays
+// view-safe (the background imports these; no chrome types leak in). A
+// telemetry-free, purely-local tally of how often Tabby's key actions run,
+// persisted in chrome.storage.local to inform future default tuning. Nothing is
+// ever sent anywhere (see src/background/usage.ts). -----------------------------
+
+/** Local usage counters keyed by event name (e.g. 'cleanupRun'). Pure data. */
+export type UsageCounts = Record<string, number>;
+
 /** Requests the view sends to the worker. */
 export type ViewRequest =
   | { type: 'getReview' }
@@ -106,7 +115,10 @@ export type ViewRequest =
   | { type: 'getRecommendations'; tabs: TabInfo[] }
   // Records log (e6f0) — read/clear the persistent recommend/close/nav trail.
   | { type: 'getRecords' }
-  | { type: 'clearRecords' };
+  | { type: 'clearRecords' }
+  // Usage counts (g6gb) — read/clear the local, telemetry-free action tally.
+  | { type: 'getUsage' }
+  | { type: 'clearUsage' };
 
 /** Response shape per request type. */
 export interface ViewResponse {
@@ -122,6 +134,8 @@ export interface ViewResponse {
   getRecommendations: { recommendations: Recommendation[] };
   getRecords: { records: RecordEntry[] };
   clearRecords: { ok: boolean };
+  getUsage: { counts: UsageCounts };
+  clearUsage: { ok: boolean };
 }
 
 /** Send a typed request to the worker and get its typed response. */

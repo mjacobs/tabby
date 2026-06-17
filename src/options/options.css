@@ -124,6 +124,25 @@ textarea:disabled {
   margin: 0.5rem 0 0;
 }
 
+.usage {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.usage li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.2rem 0;
+}
+
+.usage span {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
 footer {
   display: flex;
   align-items: center;

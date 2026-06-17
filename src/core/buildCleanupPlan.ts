@@ -53,11 +53,16 @@ function unique(ids: number[]): number[] {
 }
 
 export function buildCleanupPlan({ windows, settings }: PlanInput): CleanupPlan {
-  const allTabs = windows.flatMap((w) => w.tabs);
-
   const newWindowMode = settings.consolidateTarget === 'new-window';
+  const currentWindowMode = settings.consolidateTarget === 'current-window';
   const focused = windows.find((w) => w.focused) ?? windows[0];
   const targetWindowId = newWindowMode ? null : (focused?.id ?? null);
+
+  // current-window mode: dedup + sort within the focused window only, so the
+  // working set is narrowed to it. Other windows never enter dedup/consolidate,
+  // leaving their tabs untouched (nothing closed, moved, or vacated).
+  const workingWindows = currentWindowMode && focused ? [focused] : windows;
+  const allTabs = workingWindows.flatMap((w) => w.tabs);
 
   const { keep, close, duplicateGroups } = dedupe(allTabs, settings);
 
@@ -78,8 +83,10 @@ export function buildCleanupPlan({ windows, settings }: PlanInput): CleanupPlan 
   const ordered = sortTabs(targetTabs, settings);
 
   // A non-target window empties unless it retains a staying-pinned survivor.
+  // Only windows in the working set can be vacated — in current-window mode that
+  // is just the focused (target) window, so others are never reported empty.
   const stayingByWindow = new Set(stayingPinned.map((t) => t.windowId));
-  const emptyWindowIds = windows
+  const emptyWindowIds = workingWindows
     .filter((w) => w.id !== targetWindowId && !stayingByWindow.has(w.id))
     .map((w) => w.id);
 

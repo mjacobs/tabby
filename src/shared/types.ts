@@ -23,8 +23,18 @@ export interface TabInfo {
 /** Which copy survives within a duplicate group. */
 export type KeepPolicy = 'most-recent' | 'oldest' | 'leftmost';
 
-/** Where consolidated tabs land. */
-export type ConsolidateTarget = 'focused-window' | 'new-window';
+/**
+ * Where consolidated tabs land.
+ *   - 'focused-window': gather survivors from every window into the focused one.
+ *   - 'new-window':     gather everything into a fresh window.
+ *   - 'current-window': dedup + sort WITHIN the focused window only; skip the
+ *                       cross-window consolidate step so other windows are left
+ *                       completely untouched (no tabs closed, moved, or vacated).
+ */
+export type ConsolidateTarget =
+  | 'focused-window'
+  | 'new-window'
+  | 'current-window';
 
 /** Surface used to present the review list. */
 export type ReviewSurface = 'page' | 'sidepanel';

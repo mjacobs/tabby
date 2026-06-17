@@ -104,4 +104,16 @@ describe('coerceSettings', () => {
       expect(warnings).toContain('root: not an object, using defaults');
     }
   });
+
+  it('accepts the current-window consolidate target, rejects garbage (af7c)', () => {
+    const ok = coerceSettings({ consolidateTarget: 'current-window' });
+    expect(ok.settings.consolidateTarget).toBe('current-window');
+    expect(ok.warnings).toEqual([]);
+
+    const bad = coerceSettings({ consolidateTarget: 'sideways-window' });
+    expect(bad.settings.consolidateTarget).toBe(
+      DEFAULT_SETTINGS.consolidateTarget,
+    );
+    expect(bad.warnings).toContain('consolidateTarget: invalid value, kept default');
+  });
 });

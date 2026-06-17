@@ -51,6 +51,7 @@ const BLANK_POLICIES: readonly BlankTabPolicy[] = ['purge', 'collapse', 'protect
 const CONSOLIDATE_TARGETS: readonly ConsolidateTarget[] = [
   'focused-window',
   'new-window',
+  'current-window',
 ];
 const REVIEW_SURFACES: readonly ReviewSurface[] = ['page', 'sidepanel'];
 

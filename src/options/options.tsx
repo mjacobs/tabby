@@ -186,6 +186,7 @@ function Options() {
           options={[
             ['focused-window', 'Into the focused window'],
             ['new-window', 'Into a new window'],
+            ['current-window', 'Only the current window (no consolidate across windows)'],
           ]}
         />
         <Check

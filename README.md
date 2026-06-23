@@ -45,6 +45,14 @@ No mouse required. Tabby provides an extremely fast, vim-inspired keymap to revi
 - `?` — Toggle the keyboard shortcut help cheatsheet
 - `Esc` — Dismiss overlays, visual mode, or active filters
 
+### Mouse Interactions
+The keyboard model has a full mouse complement: **click a row** (anywhere but the
+links) to mark/unmark it for closing, **click the page title or host** to switch
+straight to that tab, and **hold-drag a box** down the list to select a run of
+rows at once (it auto-scrolls when you drag past the viewport edge). Rows
+highlight as you hover. Clicking and hovering never move the keyboard cursor, so
+the two models stay out of each other's way.
+
 ### Dual Review Surfaces
 Tabby's entire interface is built host-agnostically, allowing you to choose how you want to review your tabs from the Options page:
 * **Full Page (Default):** Opens in a dedicated full-browser tab (`review.html`) for wide, clear, and comprehensive list management.

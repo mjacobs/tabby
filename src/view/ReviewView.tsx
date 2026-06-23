@@ -48,6 +48,7 @@ const HELP: [string, string][] = [
   ['⌘/ctrl + enter', 'close marked tabs'],
   ['shift + S', 'stash marked tabs (save + close)'],
   ['u', 'undo last close'],
+  ['mouse', 'click row to mark · click title/host to open · drag to select'],
   ['?', 'toggle this help'],
 ];
 

@@ -12,6 +12,7 @@ import { sortTabs } from '@/core/sortTabs';
 import type { RecommendReason } from '@/core/recommend';
 import { keymap, type Intent } from '@/view/keymap';
 import { Row } from '@/view/Row';
+import { useMarquee } from '@/view/useMarquee';
 import { renderItems } from '@/view/renderItems';
 import { computeWindow, scrollToShow } from '@/view/virtualize';
 import {
@@ -303,6 +304,23 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Derived list order. Computed (and the marquee hook called) BEFORE the early
+  // returns below so every render runs the same hooks in the same order — the
+  // Rules of Hooks. `items` is the single source of row order the virtualizer,
+  // the cursor mapping, and the marquee all share.
+  const visible = visibleTabs(state);
+  const items = renderItems(state, visible);
+
+  // Mouse drag-marquee over the list (kata rxxe): a vertical band additively
+  // marks the rows it covers, reading the same `items`/row height as the
+  // virtualizer and committing into the shared `marked` set.
+  const marquee = useMarquee({
+    viewportRef,
+    items,
+    rowHeight: ROW_HEIGHT,
+    dispatch,
+  });
+
   if (!loaded) return <Shell>Loading…</Shell>;
   if (!meta) {
     return (
@@ -314,13 +332,11 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
     );
   }
 
-  const visible = visibleTabs(state);
   const markedCount = state.marked.size;
 
-  // Single source of item order: group headers (from the canonical tab order,
-  // collapse aware) + rows. Virtualization slices this.
-  const items = renderItems(state, visible);
-  // The rendered-items index of the cursor row, recorded for the scroll effect.
+  // `items` (the group-header + row order) and `visible` are computed above the
+  // early returns. The rendered-items index of the cursor row, recorded for the
+  // scroll effect.
   // The cursor indexes `visibleTabs`; a row item's `index` is that same value,
   // so map cursor → rendered-item index (headers shift it down).
   const cursorItemIndex = items.findIndex(
@@ -394,6 +410,8 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
         <div
           class="list-viewport"
           ref={viewportRef}
+          onMouseDown={marquee.onMouseDown}
+          onClickCapture={marquee.onClickCapture}
           onScroll={(e) => {
             const top = (e.currentTarget as HTMLElement).scrollTop;
             // Ignore the echo of a programmatic scroll-into-view (esp. when the
@@ -407,6 +425,15 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
           }}
         >
           <ol class="list">
+            {marquee.band && (
+              <div
+                class="marquee-band"
+                style={{
+                  top: `${marquee.band.top}px`,
+                  height: `${marquee.band.height}px`,
+                }}
+              />
+            )}
             {win.padTop > 0 && (
               <li
                 key="spacer-top"
@@ -436,6 +463,7 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
                   tab={item.tab}
                   isCursor={item.index === state.cursor}
                   isMarked={state.marked.has(item.tab.id)}
+                  isPending={marquee.pendingIds.has(item.tab.id)}
                   recommendReasons={recs.get(item.tab.id)}
                   onActivate={() => void transport.jumpTo(item.tab.id)}
                   onToggle={() => dispatch({ type: 'toggleMarkId', id: item.tab.id })}

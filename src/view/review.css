@@ -150,6 +150,8 @@ body {
   overflow-y: auto;
   /* Fill the space under the sticky header without growing the page. */
   height: calc(100vh - 4.5rem);
+  /* Positioning context for the drag-marquee band (kata rxxe). */
+  position: relative;
 }
 
 .list-spacer {
@@ -186,6 +188,33 @@ body {
 
 .row.marked {
   background: var(--marked-bg);
+}
+
+/* Drag-marquee (kata rxxe) ------------------------------------------------ */
+/* The rubber-band rectangle: a full-width horizontal band over the covered
+   vertical range (whole rows are selected, so x is irrelevant). Positioned in
+   content coordinates inside the scroll viewport, so it scrolls with the rows. */
+.marquee-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-top: 1px solid var(--accent);
+  border-bottom: 1px solid var(--accent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Rows the band is currently covering — previewed before release (commit). */
+.row.pending {
+  background: var(--hover-bg);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* Suppress text selection + link-drag ghosts while a marquee drag is active. */
+body.dragging,
+body.dragging .row {
+  user-select: none;
 }
 
 .mark {

@@ -101,6 +101,12 @@ function press(key: string, opts: KeyboardEventInit = {}) {
   window.dispatchEvent(new KeyboardEvent('keydown', { key, ...opts }));
 }
 
+function mouse(type: string, target: Element | Window, clientY: number) {
+  target.dispatchEvent(
+    new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientY }),
+  );
+}
+
 describe('ReviewView', () => {
   it('renders the loaded tabs with a count summary', async () => {
     const { transport } = makeTransport([
@@ -501,5 +507,49 @@ describe('ReviewView', () => {
 
     (container.querySelector('.row .url') as HTMLElement).click();
     await waitFor(() => expect(calls.jumpTo).toEqual([1]));
+  });
+
+  it('drag-marquee additively marks the rows the band covers (kata rxxe)', async () => {
+    const { transport, calls } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+      tab({ id: 3, url: 'https://c.com', title: 'Gamma' }),
+    ]);
+    const { container } = render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    const firstRow = container.querySelector('.row') as HTMLElement;
+
+    // Drag from y=2 (row 0) down to y=70 (covers rows at 0-28, 28-56, 56-84 →
+    // ids 1,2,3). Past the 5px threshold ⇒ a drag, not a click.
+    mouse('mousedown', firstRow, 2);
+    mouse('mousemove', window, 70);
+    mouse('mouseup', window, 70);
+
+    // All three rows are marked (additive markIds), and nothing jumped.
+    await screen.findByText('Close 3');
+    expect(calls.jumpTo).toEqual([]);
+
+    // The drag's trailing click on the row is suppressed (does not toggle a row
+    // back off): still 3 marked after a click fires on the row.
+    firstRow.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(screen.getByText('Close 3')).toBeTruthy();
+  });
+
+  it('a plain click (no drag) still toggles a single row, not a marquee', async () => {
+    const { transport } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+    ]);
+    const { container } = render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    const firstRow = container.querySelector('.row') as HTMLElement;
+    // mousedown + mouseup at the same point (no movement) ⇒ a click, which the
+    // <li> onClick turns into a single toggle.
+    mouse('mousedown', firstRow, 10);
+    mouse('mouseup', firstRow, 10);
+    firstRow.click();
+    await screen.findByText('Close 1');
   });
 });

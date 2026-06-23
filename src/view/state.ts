@@ -33,6 +33,7 @@ export type Action =
   | { type: 'moveTo'; to: 'top' | 'bottom' }
   | { type: 'toggleMark' }
   | { type: 'toggleMarkId'; id: number }
+  | { type: 'markIds'; ids: number[] }
   | { type: 'markAll' }
   | { type: 'clearMarks' }
   | { type: 'startVisual' }
@@ -150,6 +151,15 @@ export function reduce(state: ReviewUiState, action: Action): ReviewUiState {
       const marked = new Set(state.marked);
       if (marked.has(action.id)) marked.delete(action.id);
       else marked.add(action.id);
+      return { ...state, marked };
+    }
+
+    case 'markIds': {
+      // Additive union used by the drag-marquee commit: mark every id in the
+      // band, keep existing marks, never toggle off. No cursor move (mouse path).
+      if (action.ids.length === 0) return state;
+      const marked = new Set(state.marked);
+      for (const id of action.ids) marked.add(id);
       return { ...state, marked };
     }
 

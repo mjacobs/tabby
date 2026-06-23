@@ -53,6 +53,22 @@ describe('review state', () => {
     expect(s.cursor).toBe(0);
   });
 
+  it('markIds adds ids additively and preserves existing marks (no cursor move)', () => {
+    let s = load('a', 'b', 'c', 'd');
+    s = reduce(s, { type: 'toggleMarkId', id: 1 }); // pre-existing mark
+    s = reduce(s, { type: 'markIds', ids: [2, 3] });
+    expect([...s.marked].sort((a, b) => a - b)).toEqual([1, 2, 3]);
+    expect(s.cursor).toBe(0);
+    // Re-marking an already-marked id is a no-op (never toggles off).
+    s = reduce(s, { type: 'markIds', ids: [2] });
+    expect([...s.marked].sort((a, b) => a - b)).toEqual([1, 2, 3]);
+  });
+
+  it('markIds with no ids is a no-op returning the same state', () => {
+    const s = load('a', 'b');
+    expect(reduce(s, { type: 'markIds', ids: [] })).toBe(s);
+  });
+
   it('marks a visual range', () => {
     let s = load('a', 'b', 'c', 'd');
     s = reduce(s, { type: 'move', delta: 1 }); // cursor at 1

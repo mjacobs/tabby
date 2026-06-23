@@ -6,9 +6,13 @@ interface RowProps {
   tab: TabInfo;
   isCursor: boolean;
   isMarked: boolean;
+  /** True while a drag-marquee band is covering this row (live preview). */
+  isPending?: boolean;
   /** Advisory close-recommendation reasons (kata 9kb5); absent = no flag. */
   recommendReasons?: RecommendReason[];
-  onClick: () => void;
+  /** Jump to this tab — the title/host links (kata rxxe). */
+  onActivate: () => void;
+  /** Toggle this row's close-mark — row body, checkbox, advisory badge. */
   onToggle: () => void;
 }
 
@@ -42,16 +46,32 @@ export function Row({
   tab,
   isCursor,
   isMarked,
+  isPending,
   recommendReasons,
-  onClick,
+  onActivate,
   onToggle,
 }: RowProps) {
-  const cls = ['row', isCursor && 'cursor', isMarked && 'marked']
+  const cls = [
+    'row',
+    isCursor && 'cursor',
+    isMarked && 'marked',
+    isPending && 'pending',
+  ]
     .filter(Boolean)
     .join(' ');
 
+  // Title + host are links: a plain click jumps to the tab. preventDefault stops
+  // the anchor's own navigation (we call jumpTo instead); stopPropagation keeps
+  // the row-body toggle (the <li> onClick) from also firing. draggable=false so a
+  // drag that starts on a link feeds the marquee instead of a link-drag ghost.
+  const activate = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onActivate();
+  };
+
   return (
-    <li class={cls} onClick={onClick}>
+    <li class={cls} onClick={onToggle}>
       <input
         type="checkbox"
         class="mark"
@@ -72,8 +92,19 @@ export function Row({
       ) : (
         <span class="favicon placeholder" />
       )}
-      <span class="url">{hostOf(tab.url)}</span>
-      <span class="title">{tab.title}</span>
+      <a
+        class="url"
+        href={tab.url}
+        draggable={false}
+        title={tab.url}
+        onClick={activate}
+      >
+        {hostOf(tab.url)}
+      </a>
+      <a class="title" href={tab.url} draggable={false} onClick={activate}>
+        {tab.title}
+      </a>
+      <span class="row-fill" />
       <span class="badges">
         {tab.active && <span class="badge active">active</span>}
         {tab.pinned && <span class="badge">pinned</span>}

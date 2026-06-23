@@ -459,4 +459,47 @@ describe('ReviewView', () => {
     press('Enter');
     await waitFor(() => expect(calls.jumpTo).toEqual([1]));
   });
+
+  it('clicking the row body toggles the mark and does not jump (kata rxxe)', async () => {
+    const { transport, calls } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+    ]);
+    const { container } = render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    // Click the row <li> body (not a link): toggles the mark, never jumps.
+    const row = container.querySelector('.row') as HTMLElement;
+    row.click();
+    await screen.findByText('Close 1');
+    expect(calls.jumpTo).toEqual([]);
+
+    // Clicking again unmarks.
+    row.click();
+    await waitFor(() => expect(screen.queryByText('Close 1')).toBeNull());
+  });
+
+  it('clicking the title text switches to that tab (kata rxxe)', async () => {
+    const { transport, calls } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+    ]);
+    render(<ReviewView transport={transport} />);
+    const title = await screen.findByText('Alpha');
+
+    title.click();
+    await waitFor(() => expect(calls.jumpTo).toEqual([1]));
+    // The title click did not also mark the row.
+    expect(screen.queryByText('Close 1')).toBeNull();
+  });
+
+  it('clicking the host text switches to that tab (kata rxxe)', async () => {
+    const { transport, calls } = makeTransport([
+      tab({ id: 1, url: 'https://a.com/page', title: 'Alpha' }),
+    ]);
+    const { container } = render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    (container.querySelector('.row .url') as HTMLElement).click();
+    await waitFor(() => expect(calls.jumpTo).toEqual([1]));
+  });
 });

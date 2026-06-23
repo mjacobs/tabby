@@ -5,6 +5,7 @@
   --border: #e6e6e6;
   --cursor-bg: #eef4ff;
   --cursor-bar: #3b82f6;
+  --hover-bg: #f5f8ff;
   --marked-bg: #fff1f0;
   --marked-fg: #b42318;
   --accent: #3b82f6;
@@ -18,6 +19,7 @@
     --border: #333;
     --cursor-bg: #1e2a40;
     --cursor-bar: #5b9bff;
+    --hover-bg: #20242c;
     --marked-bg: #3a1f1d;
     --marked-fg: #ff9b8f;
     --accent: #5b9bff;
@@ -165,6 +167,12 @@ body {
   height: var(--row-h, 28px);
 }
 
+/* Hover highlight (kata rxxe). Declared before .cursor / .marked so those
+   (equal specificity, later in the file) keep priority on a hovered row. */
+.row:hover {
+  background: var(--hover-bg);
+}
+
 .row.cursor {
   background: var(--cursor-bg);
   border-left-color: var(--cursor-bar);
@@ -195,18 +203,46 @@ body {
   border-radius: 3px;
 }
 
-.url {
+/* Title + host are links (kata rxxe): sized to their text so the trailing
+   row-fill stays a click-to-select target. They look like plain text until
+   hovered, when a traditional underline (+ link colour on the host) hints
+   they're links. */
+.row a.url,
+.row a.title {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row a.url {
   color: var(--muted);
   flex: none;
   max-width: 38%;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.title {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.row a.url:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.row a.title {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.row a.title:hover {
+  text-decoration: underline;
+}
+
+/* Flexible select surface between the title and the badges: clicking here
+   toggles the row's mark (the <li> onClick). */
+.row-fill {
+  flex: 1 1 0;
+  min-width: 0.75rem;
+  align-self: stretch;
 }
 
 .badges {

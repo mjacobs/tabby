@@ -228,10 +228,13 @@ body {
   z-index: 1;
 }
 
-/* Rows the band is currently covering — previewed before release (commit). */
+/* Rows the band is currently covering — previewed before release (commit). The
+   band overlay itself (tinted fill + top/bottom accent borders) delineates the
+   selection; a per-row left accent bar sat 3px inboard of the band edge (the
+   row's transparent left border) and read as a misaligned second border, so the
+   row preview is just a background tint under the band. (kata rz1c) */
 .row.pending {
   background: var(--hover-bg);
-  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 /* Suppress text selection + link-drag ghosts while a marquee drag is active. */

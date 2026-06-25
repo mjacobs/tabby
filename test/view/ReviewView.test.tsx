@@ -644,6 +644,30 @@ describe('ReviewView', () => {
     await waitFor(() => expect(screen.queryByText('Close 1')).toBeNull());
   });
 
+  it('moves focus into the menu on open and restores it on dismiss (rz1c a11y)', async () => {
+    const { transport } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+    ]);
+    const { container } = render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    // Focus a control in the row before opening, to prove focus is restored.
+    const opener = container.querySelector('.row .row-close') as HTMLElement;
+    opener.focus();
+    expect(document.activeElement).toBe(opener);
+
+    contextMenu(container.querySelector('.row') as HTMLElement);
+    // Focus lands on the first menu item so the menu is keyboard-operable.
+    const firstItem = await screen.findByText('Close tab');
+    expect(document.activeElement).toBe(firstItem);
+
+    // Escape closes and returns focus to where it was.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await waitFor(() => expect(screen.queryByText('Close tab')).toBeNull());
+    expect(document.activeElement).toBe(opener);
+  });
+
   it('a plain click (no drag) still toggles a single row, not a marquee', async () => {
     const { transport } = makeTransport([
       tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),

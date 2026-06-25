@@ -35,6 +35,19 @@ export function ContextMenu({
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: menu.x, y: menu.y });
 
+  // Move focus into the menu on open so it's reachable/operable by keyboard (and
+  // the role="menu" is honest — e.g. a Shift+F10 / context-menu-key open lands in
+  // it), and restore focus to the opener on close. Full arrow-key navigation is
+  // out of scope; Tab between items + Escape to dismiss is enough here. (rz1c)
+  useLayoutEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    ref.current?.querySelector<HTMLElement>('.ctx-item')?.focus();
+    return () => {
+      if (opener && opener.isConnected) opener.focus();
+    };
+    // Mount-once: capture the opener and focus the first item; restore on close.
+  }, []);
+
   // Measure once mounted and flip back on-screen near an edge. jsdom reports a
   // 0×0 box, so this is a no-op there (the menu renders at the click point).
   useLayoutEffect(() => {

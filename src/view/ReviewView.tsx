@@ -241,6 +241,28 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
     // Re-measure once the list first appears (loaded toggles the viewport in).
   }, [loaded]);
 
+  // Close / stash a specific set of tabs, then drop them from the list. Shared
+  // by the keyboard commit/stash, the per-row × button, and the context menu —
+  // each just supplies the ids. Both are undoable (the worker tracks the last
+  // closed batch). Empty sets are ignored; callers that want a "nothing marked"
+  // toast check before calling.
+  async function closeTabs(ids: number[]) {
+    if (ids.length === 0) return;
+    if (confirmRef.current && !window.confirm(`Close ${ids.length} tab(s)?`)) {
+      return;
+    }
+    const closed = await transport.commitClose(ids);
+    dispatch({ type: 'removeTabs', ids });
+    setToast(`Closed ${closed}. Press u to undo.`);
+  }
+
+  async function stashTabs(ids: number[]) {
+    if (ids.length === 0) return;
+    const { stashed, closed } = await transport.stashClose(ids);
+    dispatch({ type: 'removeTabs', ids });
+    setToast(`Stashed ${stashed}, closed ${closed}. Press u to undo.`);
+  }
+
   async function handleIntent(intent: Intent) {
     switch (intent.type) {
       case 'focusFilter':
@@ -261,15 +283,7 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
           setToast('Nothing marked.');
           return;
         }
-        if (
-          confirmRef.current &&
-          !window.confirm(`Close ${ids.length} tab(s)?`)
-        ) {
-          return;
-        }
-        const closed = await transport.commitClose(ids);
-        dispatch({ type: 'removeTabs', ids });
-        setToast(`Closed ${closed}. Press u to undo.`);
+        await closeTabs(ids);
         return;
       }
       case 'stash': {
@@ -278,9 +292,7 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
           setToast('Nothing marked.');
           return;
         }
-        const { stashed, closed } = await transport.stashClose(ids);
-        dispatch({ type: 'removeTabs', ids });
-        setToast(`Stashed ${stashed}, closed ${closed}. Press u to undo.`);
+        await stashTabs(ids);
         return;
       }
       case 'undo': {
@@ -468,6 +480,7 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
                   recommendReasons={recs.get(item.tab.id)}
                   onActivate={() => void transport.jumpTo(item.tab.id)}
                   onToggle={() => dispatch({ type: 'toggleMarkId', id: item.tab.id })}
+                  onClose={() => void closeTabs([item.tab.id])}
                 />
               ),
             )}

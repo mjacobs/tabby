@@ -536,6 +536,26 @@ describe('ReviewView', () => {
     expect(screen.getByText('Close 3')).toBeTruthy();
   });
 
+  it('clicking the row × closes that one tab, without marking or jumping (rz1c)', async () => {
+    const { transport, calls } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+    ]);
+    const { container } = render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    const closeBtn = container.querySelector('.row .row-close') as HTMLElement;
+    closeBtn.click();
+
+    // The tab is closed immediately (commitClose), the row leaves the list, and
+    // the click neither toggled a mark nor jumped to the tab.
+    await waitFor(() => expect(calls.commitClose).toEqual([[1]]));
+    await waitFor(() => expect(screen.queryByText('Alpha')).toBeNull());
+    expect(calls.jumpTo).toEqual([]);
+    expect(screen.queryByText('Close 1')).toBeNull(); // no leftover mark
+    expect(screen.getByText('Beta')).toBeTruthy();
+  });
+
   it('a plain click (no drag) still toggles a single row, not a marquee', async () => {
     const { transport } = makeTransport([
       tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),

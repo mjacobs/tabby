@@ -139,8 +139,9 @@ export function useMarquee({
     suppressClick.current = false;
     if (e.button !== 0) return;
     const target = e.target as Element;
-    // Let the checkbox and group headers keep their own click behavior.
-    if (target.closest('.mark, .group-divider')) return;
+    // Let the checkbox, the per-row close ×, and group headers keep their own
+    // click behavior (a press on them must not start a marquee drag).
+    if (target.closest('.mark, .row-close, .group-divider')) return;
     dragging.current = false;
     startClientY.current = e.clientY;
     lastClientY.current = e.clientY;

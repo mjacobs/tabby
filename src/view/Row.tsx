@@ -14,6 +14,8 @@ interface RowProps {
   onActivate: () => void;
   /** Toggle this row's close-mark — row body, checkbox, advisory badge. */
   onToggle: () => void;
+  /** Close just this tab immediately — the per-row × button (kata rz1c). */
+  onClose: () => void;
 }
 
 /**
@@ -50,6 +52,7 @@ export function Row({
   recommendReasons,
   onActivate,
   onToggle,
+  onClose,
 }: RowProps) {
   const cls = [
     'row',
@@ -124,6 +127,19 @@ export function Row({
           </button>
         ))}
       </span>
+      <button
+        class="row-close"
+        title="Close this tab"
+        aria-label="Close this tab"
+        // stopPropagation so the row-body toggle (the <li> onClick) doesn't also
+        // fire; the press is excluded from the marquee in useMarquee.
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+      >
+        ×
+      </button>
     </li>
   );
 }

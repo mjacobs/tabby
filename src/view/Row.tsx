@@ -74,7 +74,7 @@ export function Row({
   };
 
   return (
-    <li class={cls} onClick={onToggle}>
+    <li class={cls} data-tab-id={tab.id} onClick={onToggle}>
       <input
         type="checkbox"
         class="mark"

@@ -12,6 +12,8 @@ import { sortTabs } from '@/core/sortTabs';
 import type { RecommendReason } from '@/core/recommend';
 import { keymap, type Intent } from '@/view/keymap';
 import { Row } from '@/view/Row';
+import { ContextMenu } from '@/view/ContextMenu';
+import { useContextMenu } from '@/view/useContextMenu';
 import { useMarquee } from '@/view/useMarquee';
 import { renderItems } from '@/view/renderItems';
 import { computeWindow, scrollToShow } from '@/view/virtualize';
@@ -334,6 +336,10 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
     dispatch,
   });
 
+  // Right-click menu over a row (kata rz1c): opens a Tabby menu in place of
+  // Chrome's. Its actions reuse the same close/stash/mark paths as the keyboard.
+  const ctx = useContextMenu();
+
   if (!loaded) return <Shell>Loading…</Shell>;
   if (!meta) {
     return (
@@ -425,6 +431,7 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
           ref={viewportRef}
           onMouseDown={marquee.onMouseDown}
           onClickCapture={marquee.onClickCapture}
+          onContextMenu={ctx.onContextMenu}
           onScroll={(e) => {
             const top = (e.currentTarget as HTMLElement).scrollTop;
             // Ignore the echo of a programmatic scroll-into-view (esp. when the
@@ -495,6 +502,18 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
         </div>
       )}
 
+      {ctx.menu && (
+        <ContextMenu
+          menu={ctx.menu}
+          marked={state.marked}
+          onCloseTabs={(ids) => void closeTabs(ids)}
+          onStashTabs={(ids) => void stashTabs(ids)}
+          onMarkTabs={(ids) => dispatch({ type: 'markIds', ids })}
+          onUnmarkTabs={(ids) => dispatch({ type: 'unmarkIds', ids })}
+          onJump={(id) => void transport.jumpTo(id)}
+          onDismiss={ctx.close}
+        />
+      )}
       {toast && <div class="toast">{toast}</div>}
       {state.showHelp && <Help />}
     </div>

@@ -107,6 +107,17 @@ function mouse(type: string, target: Element | Window, clientY: number) {
   );
 }
 
+function contextMenu(target: Element, clientX = 0, clientY = 0) {
+  const e = new MouseEvent('contextmenu', {
+    bubbles: true,
+    cancelable: true,
+    clientX,
+    clientY,
+  });
+  target.dispatchEvent(e);
+  return e;
+}
+
 describe('ReviewView', () => {
   it('renders the loaded tabs with a count summary', async () => {
     const { transport } = makeTransport([
@@ -554,6 +565,83 @@ describe('ReviewView', () => {
     expect(calls.jumpTo).toEqual([]);
     expect(screen.queryByText('Close 1')).toBeNull(); // no leftover mark
     expect(screen.getByText('Beta')).toBeTruthy();
+  });
+
+  it('right-click on an unmarked row opens a menu that closes just that tab (rz1c)', async () => {
+    const { transport, calls } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+    ]);
+    const { container } = render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    const firstRow = container.querySelector('.row') as HTMLElement;
+    const e = contextMenu(firstRow);
+    // Chrome's default page menu is suppressed.
+    expect(e.defaultPrevented).toBe(true);
+
+    // The menu targets just this one (unmarked) row.
+    (await screen.findByText('Close tab')).click();
+    await waitFor(() => expect(calls.commitClose).toEqual([[1]]));
+    // Acting dismissed the menu.
+    await waitFor(() => expect(screen.queryByText('Close tab')).toBeNull());
+    expect(calls.jumpTo).toEqual([]);
+  });
+
+  it('right-click on a marked row acts on the whole marked selection (rz1c)', async () => {
+    const { transport, calls } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+      tab({ id: 3, url: 'https://c.com', title: 'Gamma' }),
+    ]);
+    const { container } = render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    press('a'); // mark all visible (ids 1,2,3)
+    await screen.findByText('Close 3');
+
+    const secondRow = container.querySelectorAll('.row')[1] as HTMLElement;
+    contextMenu(secondRow); // right-click a row that is part of the selection
+    (await screen.findByText('Close 3 tabs')).click();
+    await waitFor(() => expect(calls.commitClose).toEqual([[1, 2, 3]]));
+  });
+
+  it('the menu Jump item shows only for a single-row target and jumps (rz1c)', async () => {
+    const { transport, calls } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+    ]);
+    const { container } = render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    const firstRow = container.querySelector('.row') as HTMLElement;
+    contextMenu(firstRow); // unmarked single row → Jump present
+    (await screen.findByText('Jump to tab')).click();
+    await waitFor(() => expect(calls.jumpTo).toEqual([1]));
+
+    press('a'); // mark both
+    await screen.findByText('Close 2');
+    contextMenu(firstRow); // multi-target → no Jump
+    await screen.findByText('Close 2 tabs');
+    expect(screen.queryByText('Jump to tab')).toBeNull();
+  });
+
+  it('the menu marks an unmarked target and unmarks a marked one (rz1c)', async () => {
+    const { transport } = makeTransport([
+      tab({ id: 1, url: 'https://a.com', title: 'Alpha' }),
+      tab({ id: 2, url: 'https://b.com', title: 'Beta' }),
+    ]);
+    const { container } = render(<ReviewView transport={transport} />);
+    await screen.findByText('Alpha');
+
+    const firstRow = container.querySelector('.row') as HTMLElement;
+    contextMenu(firstRow); // unmarked → "Mark"
+    (await screen.findByText('Mark')).click();
+    await screen.findByText('Close 1');
+
+    contextMenu(firstRow); // now marked → "Unmark"
+    (await screen.findByText('Unmark')).click();
+    await waitFor(() => expect(screen.queryByText('Close 1')).toBeNull());
   });
 
   it('a plain click (no drag) still toggles a single row, not a marquee', async () => {

@@ -69,6 +69,22 @@ describe('review state', () => {
     expect(reduce(s, { type: 'markIds', ids: [] })).toBe(s);
   });
 
+  it('unmarkIds removes the given ids and leaves the rest (no cursor move)', () => {
+    let s = load('a', 'b', 'c', 'd');
+    s = reduce(s, { type: 'markIds', ids: [1, 2, 3] });
+    s = reduce(s, { type: 'unmarkIds', ids: [2, 3] });
+    expect([...s.marked]).toEqual([1]);
+    expect(s.cursor).toBe(0);
+    // Removing an id that isn't marked is harmless.
+    s = reduce(s, { type: 'unmarkIds', ids: [99] });
+    expect([...s.marked]).toEqual([1]);
+  });
+
+  it('unmarkIds with no ids is a no-op returning the same state', () => {
+    const s = load('a', 'b');
+    expect(reduce(s, { type: 'unmarkIds', ids: [] })).toBe(s);
+  });
+
   it('marks a visual range', () => {
     let s = load('a', 'b', 'c', 'd');
     s = reduce(s, { type: 'move', delta: 1 }); // cursor at 1

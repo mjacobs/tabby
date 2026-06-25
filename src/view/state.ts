@@ -34,6 +34,7 @@ export type Action =
   | { type: 'toggleMark' }
   | { type: 'toggleMarkId'; id: number }
   | { type: 'markIds'; ids: number[] }
+  | { type: 'unmarkIds'; ids: number[] }
   | { type: 'markAll' }
   | { type: 'clearMarks' }
   | { type: 'startVisual' }
@@ -160,6 +161,16 @@ export function reduce(state: ReviewUiState, action: Action): ReviewUiState {
       if (action.ids.length === 0) return state;
       const marked = new Set(state.marked);
       for (const id of action.ids) marked.add(id);
+      return { ...state, marked };
+    }
+
+    case 'unmarkIds': {
+      // Remove every id in the set, keep the rest. The mouse counterpart to
+      // markIds — used by the context menu's "Unmark" on a marked selection.
+      // No cursor move (mouse path).
+      if (action.ids.length === 0) return state;
+      const marked = new Set(state.marked);
+      for (const id of action.ids) marked.delete(id);
       return { ...state, marked };
     }
 

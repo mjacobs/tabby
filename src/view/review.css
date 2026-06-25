@@ -35,6 +35,9 @@ body {
   font: 13.5px/1.4 system-ui, sans-serif;
   color: var(--fg);
   background: var(--bg);
+  /* Absorb the 100vw-vs-scrollbar overhang from the full-bleed list viewport
+     (kata rz1c) so it never adds a horizontal page scrollbar. */
+  overflow-x: hidden;
 }
 
 .app {
@@ -136,10 +139,16 @@ body {
 }
 
 /* Rows -------------------------------------------------------------------- */
+/* The centered content column. The viewport below is full-bleed so a marquee
+   drag can start in the margins; this re-centers the rows to the same width and
+   gutters they had inside the old centered .app, and is the positioning context
+   for the marquee band so the band tracks the column, not the whole window. */
 .list {
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: 0 auto;
+  padding: 0 1rem;
+  max-width: 960px;
+  position: relative;
 }
 
 /* Virtualized scroll viewport. A fixed height lets only the slice of rows that
@@ -150,7 +159,11 @@ body {
   overflow-y: auto;
   /* Fill the space under the sticky header without growing the page. */
   height: calc(100vh - 4.5rem);
-  /* Positioning context for the drag-marquee band (kata rxxe). */
+  /* Full-bleed: span the whole window so a drag-marquee (and the right-click
+     menu) can start in the left/right whitespace, not only inside the centered
+     column. Rows stay centered via .list's max-width. (kata rz1c, rxxe) */
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
   position: relative;
 }
 
@@ -467,6 +480,13 @@ body.surface-sidepanel .counts {
   flex: 1 1 100%;
   order: 4;
   font-size: 0.78rem;
+}
+
+/* The full-bleed viewport is a near-no-op in the narrow panel; keep the column
+   tight (the 960px cap + 1rem gutters of the page surface would over-pad it). */
+body.surface-sidepanel .list {
+  max-width: none;
+  padding: 0 0.25rem;
 }
 
 body.surface-sidepanel .row {

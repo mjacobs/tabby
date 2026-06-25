@@ -51,6 +51,8 @@ const HELP: [string, string][] = [
   ['shift + S', 'stash marked tabs (save + close)'],
   ['u', 'undo last close'],
   ['mouse', 'click row to mark · click title/host to open · drag to select'],
+  ['right-click', 'menu: close / stash / mark / jump'],
+  ['× / row', 'close just that tab'],
   ['?', 'toggle this help'],
 ];
 

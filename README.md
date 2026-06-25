@@ -49,9 +49,13 @@ No mouse required. Tabby provides an extremely fast, vim-inspired keymap to revi
 The keyboard model has a full mouse complement: **click a row** (anywhere but the
 links) to mark/unmark it for closing, **click the page title or host** to switch
 straight to that tab, and **hold-drag a box** down the list to select a run of
-rows at once (it auto-scrolls when you drag past the viewport edge). Rows
-highlight as you hover. Clicking and hovering never move the keyboard cursor, so
-the two models stay out of each other's way.
+rows at once (it auto-scrolls when you drag past the viewport edge, and you can
+start the drag anywhere — including the empty margins beside the list). Each row
+also has a **× button** to close just that tab, and **right-clicking** a row
+opens a Tabby menu to close, stash, mark, or jump — acting on your whole
+selection when you right-click a selected row, or just that one row otherwise.
+Rows highlight as you hover. Clicking and hovering never move the keyboard
+cursor, so the two models stay out of each other's way.
 
 ### Dual Review Surfaces
 Tabby's entire interface is built host-agnostically, allowing you to choose how you want to review your tabs from the Options page:

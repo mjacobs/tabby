@@ -76,7 +76,9 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
   const filterRef = useRef<HTMLInputElement>(null);
   // Virtualization: the scroll viewport + its current scroll/height drive which
   // slice of items renders. Defaults give a sane first paint before measurement.
-  const viewportRef = useRef<HTMLDivElement>(null);
+  // The scroll container is the centered <ol class="list">; the full-bleed
+  // .list-viewport wrapper around it is only a hit/positioning layer.
+  const viewportRef = useRef<HTMLOListElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(600);
   // Mirror of scrollTop the cursor-scroll effect reads without a render dep.
@@ -430,23 +432,25 @@ export function ReviewView({ transport }: { transport: ReviewTransport }) {
       ) : (
         <div
           class="list-viewport"
-          ref={viewportRef}
           onMouseDown={marquee.onMouseDown}
           onClickCapture={marquee.onClickCapture}
           onContextMenu={ctx.onContextMenu}
-          onScroll={(e) => {
-            const top = (e.currentTarget as HTMLElement).scrollTop;
-            // Ignore the echo of a programmatic scroll-into-view (esp. when the
-            // environment clamps scrollTop to a stale layout height).
-            if (programmaticTopRef.current != null) {
-              programmaticTopRef.current = null;
-              return;
-            }
-            scrollTopRef.current = top;
-            setScrollTop(top);
-          }}
         >
-          <ol class="list">
+          <ol
+            class="list"
+            ref={viewportRef}
+            onScroll={(e) => {
+              const top = (e.currentTarget as HTMLElement).scrollTop;
+              // Ignore the echo of a programmatic scroll-into-view (esp. when the
+              // environment clamps scrollTop to a stale layout height).
+              if (programmaticTopRef.current != null) {
+                programmaticTopRef.current = null;
+                return;
+              }
+              scrollTopRef.current = top;
+              setScrollTop(top);
+            }}
+          >
             {marquee.band && (
               <div
                 class="marquee-band"

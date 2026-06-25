@@ -30,14 +30,21 @@
   box-sizing: border-box;
 }
 
+/* Clip horizontally on the root scroller too: the full-bleed list viewport is
+   100vw, which is wider than the content area when a vertical page scrollbar is
+   present — without this the overhang lands on <html> and adds a stray
+   horizontal scrollbar. `clip` removes it without making a scroll container.
+   (kata rz1c) */
+html {
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   font: 13.5px/1.4 system-ui, sans-serif;
   color: var(--fg);
   background: var(--bg);
-  /* Absorb the 100vw-vs-scrollbar overhang from the full-bleed list viewport
-     (kata rz1c) so it never adds a horizontal page scrollbar. */
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .app {
@@ -139,29 +146,30 @@ body {
 }
 
 /* Rows -------------------------------------------------------------------- */
-/* The centered content column. The viewport below is full-bleed so a marquee
-   drag can start in the margins; this re-centers the rows to the same width and
-   gutters they had inside the old centered .app, and is the positioning context
-   for the marquee band so the band tracks the column, not the whole window. */
+/* The centered content column AND the scroll container. A fixed height lets
+   only the slice of rows that intersect it (plus overscan) live in the DOM
+   (virtualization); --row-h (on the full-bleed wrapper) keeps every row + group
+   divider uniform so the windowing math stays simple. Keeping the scroll +
+   vertical scrollbar here (not on the full-bleed wrapper) keeps the scrollbar
+   inside the column instead of jammed against the page edge. It is also the
+   positioning context for the marquee band, so the band tracks the column.
+   (kata rz1c) */
 .list {
   list-style: none;
   margin: 0 auto;
   padding: 0 1rem;
   max-width: 960px;
   position: relative;
+  overflow-y: auto;
+  height: calc(100vh - 4.5rem);
 }
 
-/* Virtualized scroll viewport. A fixed height lets only the slice of rows that
-   intersect the viewport (plus overscan) live in the DOM; --row-h keeps every
-   row + group divider a uniform height so the windowing math stays simple. */
+/* Full-bleed, NON-scrolling hit + positioning layer: it spans the whole window
+   so a drag-marquee (and the right-click menu) can start in the left/right
+   whitespace, while the centered .list above does the actual scrolling. Rows
+   stay centered via .list's max-width. (kata rz1c, rxxe) */
 .list-viewport {
   --row-h: 28px;
-  overflow-y: auto;
-  /* Fill the space under the sticky header without growing the page. */
-  height: calc(100vh - 4.5rem);
-  /* Full-bleed: span the whole window so a drag-marquee (and the right-click
-     menu) can start in the left/right whitespace, not only inside the centered
-     column. Rows stay centered via .list's max-width. (kata rz1c, rxxe) */
   width: 100vw;
   margin-left: calc(50% - 50vw);
   position: relative;
@@ -206,11 +214,13 @@ body {
 /* Drag-marquee (kata rxxe) ------------------------------------------------ */
 /* The rubber-band rectangle: a full-width horizontal band over the covered
    vertical range (whole rows are selected, so x is irrelevant). Positioned in
-   content coordinates inside the scroll viewport, so it scrolls with the rows. */
+   content coordinates inside the centered .list, so it scrolls with the rows.
+   The left/right insets match .list's padding so the band lines up with the row
+   edges rather than overhanging into the gutter (kata rz1c). */
 .marquee-band {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 1rem;
+  right: 1rem;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   border-top: 1px solid var(--accent);
   border-bottom: 1px solid var(--accent);
@@ -487,6 +497,12 @@ body.surface-sidepanel .counts {
 body.surface-sidepanel .list {
   max-width: none;
   padding: 0 0.25rem;
+}
+
+/* Keep the marquee band aligned to the tighter side-panel gutter. */
+body.surface-sidepanel .marquee-band {
+  left: 0.25rem;
+  right: 0.25rem;
 }
 
 body.surface-sidepanel .row {

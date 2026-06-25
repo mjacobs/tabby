@@ -20,7 +20,9 @@ const cancelRaf =
     : (id: number) => clearTimeout(id);
 
 interface MarqueeOpts {
-  viewportRef: RefObject<HTMLDivElement>;
+  // The scroll container (the centered <ol>); only its rect/scroll metrics are
+  // read, so any HTMLElement works.
+  viewportRef: RefObject<HTMLElement>;
   items: RenderItem[];
   rowHeight: number;
   dispatch: (action: Action) => void;
